@@ -135,6 +135,9 @@ static void store(Type *Ty) {
     printLn("  sd a0, 0(a1)");
 };
 
+// 与0进行比较，不等于0则置1
+static void cmpZero(Type *Ty) { printLn("snez a0, a0"); }
+
 // 类型枚举
 enum { I8, I16, I32, I64 };
 
@@ -171,6 +174,11 @@ static char *castTable[10][10] = {
 static void cast(Type *From, Type *To) {
   if (To->Kind == TY_VOID)
     return;
+
+  if (To->Kind == TY_BOOL) {
+    cmpZero(From);
+    return;
+  }
 
   // 获取类型的枚举值
   int T1 = getTypeId(From);
