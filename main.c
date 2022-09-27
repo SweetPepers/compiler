@@ -1,80 +1,160 @@
-#include "rvcc.h"
+#include <ctype.h>  // 判断字符信息 
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-// 目标文件的路径
-static char *OptO;
 
-// 输入文件的路径
-static char *InputPath;
+// 为每个终结符都设置种类来表示
+typedef enum
+{
+    TK_PUNCT, // 操作符如： + - 
+    TK_NUM,   // 数字
+    TK_EOF,   // 文件终止符，即文件的最后
+} TokenKind;
 
-// 输出程序的使用说明
-static void usage(int Status) {
-  fprintf(stderr, "rvcc [ -o <path> ] <file>\n");
-  exit(Status);
+// 终结符结构体
+typedef struct Token Token;
+struct Token
+{
+    TokenKind Kind; // 种类
+    Token *Next;    // 指向下一终结符
+    int Val;        // 值
+    char *Loc;      // 在解析的字符串内的位置
+    int Len;        // 长度
+};
+
+// 输出错误信息
+// static文件内可以访问的函数
+// Fmt为传入的字符串， ... 为可变参数，表示Fmt后面所有的参数
+static void error(char *Fmt, ...)
+{
+    // 定义一个va_list变量
+    va_list VA;
+    // VA获取Fmt后面的所有参数
+    va_start(VA, Fmt);
+    // vfprintf可以输出va_list类型的参数
+    vfprintf(stderr, Fmt, VA);
+    // 在结尾加上一个换行符
+    fprintf(stderr, "\n");
+    // 清除VA
+    va_end(VA);
+    // 终止程序
+    exit(1);
 }
 
-// 解析传入程序的参数
-static void parseArgs(int Argc, char **Argv) {
-  for (int I = 1; I < Argc; I++) {
-    // 如果存在help，则直接显示用法说明
-    if (!strcmp(Argv[I], "--help"))
-      usage(0);
+// 判断Tok的值是否等于指定值，没有用char，是为了后续拓展
+static bool equal(Token *Tok, char *Str)
+{
+    // 比较字符串LHS（左部），RHS（右部）的前N位，S2的长度应大于等于N.
+    // 比较按照字典序，LHS<RHS回负值，LHS=RHS返回0，LHS>RHS返回正值
+    // 同时确保，此处的Op位数=N
+    return memcmp(Tok->Loc, Str, Tok->Len) == 0 && Str[Tok->Len] == '\0';
+}
 
-    // 解析-o XXX的参数
-    if (!strcmp(Argv[I], "-o")) {
-      // 不存在目标文件则报错
-      if (!Argv[++I])
-        usage(1);
-      // 目标文件的路径
-      OptO = Argv[I];
-      continue;
+// 跳过指定的Str
+static Token *skip(Token *Tok, char *Str)
+{
+    if (!equal(Tok, Str))
+        error("expect '%s'", Str);
+    return Tok->Next;
+}
+
+// 返回TK_NUM的值
+static int getNumber(Token *Tok)
+{
+    if (Tok->Kind != TK_NUM)
+        error("expect a number");
+    return Tok->Val;
+}
+
+// 生成新的Token
+static Token *newToken(TokenKind Kind, char *Start, char *End)
+{
+    // 分配1个Token的内存空间
+    Token *Tok = calloc(1, sizeof(Token));
+    Tok->Kind = Kind;
+    Tok->Loc = Start;
+    Tok->Len = End - Start;
+    return Tok;
+}
+
+// 终结符解析
+static Token *tokenize(char *P)
+{
+    Token Head = {};
+    Token *Cur = &Head;
+
+    while (*P)
+    {
+        // 跳过所有空白符如：空格、回车
+        if (isspace(*P))
+        {
+            ++P;
+            continue;
+        }
+
+        // 解析数字
+        if (isdigit(*P))
+        {
+            // 初始化，类似于C++的构造函数
+            // 我们不使用Head来存储信息，仅用来表示链表入口，这样每次都是存储在Cur->Next
+            // 否则下述操作将使第一个Token的地址不在Head中。
+            Cur->Next = newToken(TK_NUM, P, P);
+            // 指针前进
+            Cur = Cur->Next;
+            const char *OldPtr = P;
+            Cur->Val = strtoul(P, &P, 10);
+            Cur->Len = P - OldPtr;
+            continue;
+        }
+
+        // 解析操作符
+        if (*P == '+' || *P == '-')
+        {
+            // 操作符长度都为1
+            Cur->Next = newToken(TK_PUNCT, P, P + 1);
+            Cur = Cur->Next;
+            ++P;
+            continue;
+        }
+
+        // 处理无法识别的字符
+        error("invalid token: %c", *P);
     }
 
-    // 解析-oXXX的参数
-    if (!strncmp(Argv[I], "-o", 2)) {
-      // 目标文件的路径
-      OptO = Argv[I] + 2;
-      continue;
+    // 解析结束，增加一个EOF，表示终止符。
+    Cur->Next = newToken(TK_EOF, P, P);
+    // Head无内容，所以直接返回Next
+    return Head.Next;
+}
+int main(int argc, char *argv[])
+{
+    // printf("%s\n", argv[1]);
+    if (argc != 2)
+    {
+        error("%s: invalid number of arguments", argv[0]);
     }
+    Token *Tok = tokenize(argv[1]);
+    printf("    .globl main\n");
+    printf("main:\n");
+    printf("    li a0, %d\n", getNumber(Tok));
+    Tok = Tok->Next;
+    while (Tok->Kind != TK_EOF)
+    {
+        if (equal(Tok, "+"))
+        {
+            Tok = Tok->Next;
+            printf("    addi a0,a0,%d\n", getNumber(Tok));
+            Tok = Tok->Next;
+            continue;
+        }
+        Tok = skip(Tok, "-");
+        printf("    addi a0, a0, -%d\n", getNumber(Tok));
+        Tok = Tok->Next;
+    }
+    printf("ret\n");
 
-    // 解析为-的参数
-    if (Argv[I][0] == '-' && Argv[I][1] != '\0')
-      error("unknown argument: %s", Argv[I]);
-
-    // 其他情况则匹配为输入文件
-    InputPath = Argv[I];
-  }
-
-  // 不存在输入文件时报错
-  if (!InputPath)
-    error("no input files");
-}
-
-// 打开需要写入的文件
-static FILE *openFile(char *Path) {
-  if (!Path || strcmp(Path, "-") == 0)
-    return stdout;
-
-  // 以写入模式打开文件
-  FILE *Out = fopen(Path, "w");
-  if (!Out)
-    error("cannot open output file: %s: %s", Path, strerror(errno));
-  return Out;
-}
-
-int main(int Argc, char **Argv) {
-  // 解析传入程序的参数
-  parseArgs(Argc, Argv);
-
-  // 解析文件，生成终结符流
-  Token *Tok = tokenizeFile(InputPath);
-
-  // 解析终结符流
-  Obj *Prog = parse(Tok);
-
-  // 生成代码
-  FILE *Out = openFile(OptO);
-  // .file 文件编号 文件名
-  fprintf(Out, ".file 1 \"%s\"\n", InputPath);
-  codegen(Prog, Out);
-  return 0;
+    return 0;
 }
