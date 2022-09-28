@@ -70,3 +70,37 @@ static void genExpr(Node *Nd)
 // unary = ("+" | "-") unary | primary
 // primary = "(" expr ")" | num
 ```
+
+### 7 == != > < >= <=
+优先级
+```c
+
+// 优先级
+// expr = equality
+// equality = relational ("==" relational | "!=" relational)*
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+// add = mul ("+" mul | "-" mul)*
+// mul = unary ("*" unary | "/" unary)*
+// unary = ("+" | "-") unary | primary
+// primary = "(" expr ")" | num
+```
+
+判断操作符占几个字节(1 or 2)
+```c
+// 判断Str是否以SubStr开头
+static bool startsWith(char *Str, char *SubStr) {
+  // 比较LHS和RHS的N个字符是否相等
+  return strncmp(Str, SubStr, strlen(SubStr)) == 0;
+}
+
+// 读取操作符
+static int readPunct(char *Ptr) {
+  // 判断2字节的操作符
+  if (startsWith(Ptr, "==") || startsWith(Ptr, "!=") || startsWith(Ptr, "<=") ||
+      startsWith(Ptr, ">="))
+    return 2;
+
+  // 判断1字节的操作符
+  return ispunct(*Ptr) ? 1 : 0;
+}
+```
