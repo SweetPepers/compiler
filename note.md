@@ -104,3 +104,9 @@ static int readPunct(char *Ptr) {
   return ispunct(*Ptr) ? 1 : 0;
 }
 ```
+
+
+### 8 代码重构, 将main分割为多个文件
+- `codegen.c` 语义分析与代码生成  通过栈操作解析语法树生成代码
+- `parse.c`   生成AST, 根据token序列生成抽象语法树   语法分析  语义分析
+- `tokenize.c`将输入字符串解析为一个一个token   词法分析
