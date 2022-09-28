@@ -60,3 +60,13 @@ static Node *primary(Token **Rest, Token *Tok);
 static void genExpr(Node *Nd) 
 // 递归将最右节点入栈  解析完左子树之后弹出
 ```
+
+### 6 一元运算符
+一元运算符优先级高于乘除
+
+```c
+// expr = mul ("+" mul | "-" mul)*
+// mul = unary ("*" unary | "/" unary)*
+// unary = ("+" | "-") unary | primary
+// primary = "(" expr ")" | num
+```
