@@ -184,3 +184,71 @@ primary()
 之后变量的地址就是 
 `addi a0, fp, %d (-Offset) `
 最后释放
+
+
+### 10 支持多字母本地变量
+- rvcc.h
+定义变量的结构体
+```c
+// 本地变量
+typedef struct Obj Obj;
+struct Obj {
+  Obj *Next;  // 指向下一对象
+  char *Name; // 变量名
+  int Offset; // fp的偏移量
+};
+
+// 不再以node为入口, 函数由语法树及其附属结构(变量表)组成 
+// 函数  
+typedef struct Function Function;
+struct Function {
+  Node *Body;    // 函数体
+  Obj *Locals;   // 本地变量
+  int StackSize; // 栈大小
+};
+
+```
+- tokennize.c
+判断变量名是否合法
+
+```c
+// 解析标记符  [a-zA-Z_][a-zA-Z0-9_]*
+    if (isIdent1(*P)){
+      char *Start = P;
+      do{
+        ++P;
+      }while(isIdent2(*P));
+
+
+// 判断标记符的首字母规则
+// [a-zA-Z_]
+static bool isIdent1(char C) {
+  // a-z与A-Z在ASCII中不相连，所以需要分别判断
+  return ('a' <= C && C <= 'z') || ('A' <= C && C <= 'Z') || C == '_';
+}
+
+// 判断标记符的非首字母的规则
+// [a-zA-Z0-9_]
+static bool isIdent2(char C) { return isIdent1(C) || ('0' <= C && C <= '9'); }
+
+```
+
+- parse.c
+因为变量由 char升级为 Obj, 做一些相应的修改
+```c
+// 维持一个链表结构存储本地变量名
+Obj *Locals;
+// 通过名称，查找一个本地变量
+static Obj *findVar(Token *Tok);
+
+// 新变量
+static Node *newVarNode(Obj *Var);
+// 在链表中新增一个变量
+static Obj *newLVar(char *Name);
+```
+
+- codegen.c
+
+`static void assignLVarOffsets(Function *Prog) `
+根据链表长度计算初始化栈的大小, 并对齐16位`Prog->StackSize = alignTo(Offset, 16)`, 修改初始化栈大小
+
