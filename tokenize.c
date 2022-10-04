@@ -1,4 +1,5 @@
 #include "rvcc.h"
+// 序列化输入
 
 // 输入的字符串
 static char *CurrentInput;

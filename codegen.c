@@ -34,7 +34,8 @@ static void genExpr(Node *Nd) {
   case ND_NEG:
     genExpr(Nd->LHS);
     // neg a0, a0是sub a0, x0, a0的别名, 即a0=0-a0
-    printf("  neg a0, a0\n");
+    // printf("  neg a0, a0\n");
+    printf("  sub a0, x0, a0\n");
     return;
   default:
     break;
@@ -95,13 +96,26 @@ static void genExpr(Node *Nd) {
   error("invalid expression");
 }
 
+// 生成语句
+static void genStmt(Node *Nd) {
+  if (Nd->Kind == ND_EXPR_STMT) {
+    genExpr(Nd->LHS);
+    return;
+  }
+
+  error("invalid statement");
+}
+
 // 代码生成入口函数，包含代码块的基础信息
 void codegen(Node *Nd) {
   printf("  .globl main\n");
   printf("main:\n");
 
-  genExpr(Nd);
-  printf("  ret\n");
+  // 循环遍历所有的语句
+  for (Node *N = Nd; N; N = N->Next) {
+    genStmt(N);
+    assert(Depth == 0);
+  }
 
-  assert(Depth == 0);
+  printf("  ret\n");
 }

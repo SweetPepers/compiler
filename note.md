@@ -108,5 +108,36 @@ static int readPunct(char *Ptr) {
 
 ### 8 代码重构, 将main分割为多个文件
 - `codegen.c` 语义分析与代码生成  通过栈操作解析语法树生成代码
-- `parse.c`   生成AST, 根据token序列生成抽象语法树   语法分析  语义分析
+- `parse.c`   生成AST, 根据token序列生成抽象语法树   语法分析
 - `tokenize.c`将输入字符串解析为一个一个token   词法分析
+
+
+### 9 支持;分隔语句
+
+- rvcc.h 里面
+添加NodeKind::ND_EXPR_STMT, // 表达式语句 : 表示是一个语句
+
+- parse.h 添加新语法规则
+语法规则
+```c
+// program = stmt*
+// stmt = exprStmt
+// exprStmt = expr ";"
+// expr = equality
+// equality = relational ("==" relational | "!=" relational)*
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+// add = mul ("+" mul | "-" mul)*
+// mul = unary ("*" unary | "/" unary)*
+// unary = ("+" | "-") unary | primary
+// primary = "(" expr ")" | num
+
+```
+program由多个表达式语句构成, 采用链表存储多个语句
+```c
+struct Node {
+  // new!!
+  Node *Next;    // 下一节点，指代下一语句
+};
+```
+- codegen.c
+生成多个语句, 为每个语句生成代码
