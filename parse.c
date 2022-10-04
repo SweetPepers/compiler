@@ -3,19 +3,21 @@
 // 抽象语法树
 
 
-// 优先级
+// 语法
 // program = stmt*
 // stmt = exprStmt
 // exprStmt = expr ";"
-// expr = equality
+// expr = assign
+// assign = equality ("=" assign)?
 // equality = relational ("==" relational | "!=" relational)*
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 // add = mul ("+" mul | "-" mul)*
 // mul = unary ("*" unary | "/" unary)*
 // unary = ("+" | "-") unary | primary
-// primary = "(" expr ")" | num
+// primary = "(" expr ")" | ident | num
 static Node *exprStmt(Token **Rest, Token *Tok);
 static Node *expr(Token **Rest, Token *Tok);
+static Node *assign(Token **Rest, Token *Tok);
 static Node *equality(Token **Rest, Token *Tok);
 static Node *relational(Token **Rest, Token *Tok);
 static Node *add(Token **Rest, Token *Tok);
@@ -52,6 +54,13 @@ static Node *newNum(int Val) {
   return Nd;
 }
 
+// 新变量
+static Node *newVarNode(char Name) {
+  Node *Nd = newNode(ND_VAR);
+  Nd->Name = Name;
+  return Nd;
+}
+
 // 解析语句
 // stmt = exprStmt
 static Node *stmt(Token **Rest, Token *Tok) { return exprStmt(Rest, Tok); }
@@ -65,8 +74,22 @@ static Node *exprStmt(Token **Rest, Token *Tok) {
 }
 
 // 解析表达式
-// expr = equality
-static Node *expr(Token **Rest, Token *Tok) { return equality(Rest, Tok); }
+// expr = assign
+static Node *expr(Token **Rest, Token *Tok) { return assign(Rest, Tok); }
+
+// 解析赋值
+// assign = equality ("=" assign)?
+static Node *assign(Token **Rest, Token *Tok) {
+  // equality
+  Node *Nd = equality(&Tok, Tok);
+
+  // 可能存在递归赋值，如a=b=1
+  // ("=" assign)?
+  if (equal(Tok, "="))
+    Nd = newBinary(ND_ASSIGN, Nd, assign(&Tok, Tok->Next));
+  *Rest = Tok;
+  return Nd;
+}
 
 // 解析相等性
 // equality = relational ("==" relational | "!=" relational)*
@@ -197,8 +220,8 @@ static Node *unary(Token **Rest, Token *Tok) {
   return primary(Rest, Tok);
 }
 
-// 解析括号、数字
-// primary = "(" expr ")" | num
+// 解析括号、数字、变量
+// primary = "(" expr ")" | ident | num
 static Node *primary(Token **Rest, Token *Tok) {
   // "(" expr ")"
   if (equal(Tok, "(")) {
@@ -210,6 +233,13 @@ static Node *primary(Token **Rest, Token *Tok) {
   // num
   if (Tok->Kind == TK_NUM) {
     Node *Nd = newNum(Tok->Val);
+    *Rest = Tok->Next;
+    return Nd;
+  }
+
+  // ident
+  if (Tok->Kind == TK_IDENT){
+    Node *Nd = newVarNode(*(Tok->Loc));
     *Rest = Tok->Next;
     return Nd;
   }

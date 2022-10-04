@@ -141,3 +141,46 @@ struct Node {
 ```
 - codegen.c
 生成多个语句, 为每个语句生成代码
+
+
+### 10 支持单字母本地变量
+- rvcc.h
+  - add TokenKind::TK_IDENT  标记符
+  - add NodeKind::ND_ASSIGN  赋值 NodeKind::ND_VAR 变量
+  - add Node::char Name 变量名字
+
+- tokenize.c
+a-z 自动识别为变量
+
+- parse.c
+```c
+// 语法
+// program = stmt*
+// stmt = exprStmt
+// exprStmt = expr ";"
+// expr = assign                                     new
+// assign = equality ("=" assign)?                   new
+// equality = relational ("==" relational | "!=" relational)*
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+// add = mul ("+" mul | "-" mul)*
+// mul = unary ("*" unary | "/" unary)*
+// unary = ("+" | "-") unary | primary
+// primary = "(" expr ")" | ident | num             new
+```
+primary() 
+```c
+  // ident
+  if (Tok->Kind == TK_IDENT){
+    Node *Nd = newVarNode(*(Tok->Loc));  // 用字符位置
+    *Rest = Tok->Next;
+    return Nd;
+  }
+```
+
+
+- codegen.c
+入口函数初始化栈, 自动在栈上生成24个变量 a-z, 并存储a的地址fp
+`Offset = (Nd->Name - 'a' + 1) * 8; `
+之后变量的地址就是 
+`addi a0, fp, %d (-Offset) `
+最后释放
