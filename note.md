@@ -333,4 +333,13 @@ main:
     }
   ```
 
-### 14 
+### 14 支持空语句 ;;;
+// exprStmt = expr? ";"
+- parse.c
+```c
+  // ";"
+  if (equal(Tok, ";")){
+    *Rest = Tok->Next;
+    return newNode(ND_BLOCK);
+  }
+```

@@ -89,5 +89,7 @@ assert 74 '{foo2=70; bar4=4;return foo2+bar4;}'
 # assert 3 '1; 2; return 3;'
 
 # [13] 支持{...}
-assert 3
+assert 3 '{ {1; {2;} return 3;} }'
+# [14] 支持空语句
+assert 5 '{ ;;; return 5; }'
 
