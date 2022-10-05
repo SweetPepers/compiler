@@ -186,7 +186,7 @@ primary()
 最后释放
 
 
-### 10 支持多字母本地变量
+### 11 支持多字母本地变量
 - rvcc.h
 定义变量的结构体
 ```c
@@ -252,3 +252,59 @@ static Obj *newLVar(char *Name);
 `static void assignLVarOffsets(Function *Prog) `
 根据链表长度计算初始化栈的大小, 并对齐16位`Prog->StackSize = alignTo(Offset, 16)`, 修改初始化栈大小
 
+
+### 12 支持return语句
+目前成果 
+```c
+foo2=70; bar4=4;return foo2+bar4;
+
+编译结果:
+  .globl main
+main:
+  addi sp, sp, -8
+  sd fp, 0(sp)
+  mv fp, sp
+  addi sp, sp, -16
+  addi a0, fp, -16
+  addi sp, sp, -8
+  sd a0, 0(sp)
+  li a0, 70
+  ld a1, 0(sp)
+  addi sp, sp, 8
+  sd a0, 0(a1)
+  addi a0, fp, -8
+  addi sp, sp, -8
+  sd a0, 0(sp)
+  li a0, 4
+  ld a1, 0(sp)
+  addi sp, sp, 8
+  sd a0, 0(a1)
+  addi a0, fp, -8
+  ld a0, 0(a0)
+  addi sp, sp, -8
+  sd a0, 0(sp)
+  addi a0, fp, -16
+  ld a0, 0(a0)
+  ld a1, 0(sp)
+  addi sp, sp, 8
+  add a0, a0, a1
+  j .L.return
+.L.return:
+  mv sp, fp
+  ld fp, 0(sp)
+  addi sp, sp, 8
+  ret
+```
+
+- rvcc.h
+  - TokenKind::TK_KEYWORD
+  - NodeKind::ND_RETURN
+- tokenize.c
+  void convertKeywords(Token *Tok) : 扫描token, 将 字符为`return`的token的Kind换为TK_KEYWORD
+- parse.c
+  语法更新
+  `stmt = "return" expr ";" | exprStmt`
+  为returntoken建立单叉树
+
+- codegen.c
+  现在stmt由return语句或者exprstmt组成, 写一个switch分别翻译, 并在epilogue上加入 `.L.return`的跳转标签

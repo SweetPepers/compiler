@@ -34,7 +34,7 @@ static void pop(char *Reg) {
 // 如果报错，说明节点不在内存中
 static void genAddr(Node *Nd) {
   if (Nd->Kind == ND_VAR) {
-    printf(" addi a0, fp, %d\n", Nd->Var->Offset);
+    printf("  addi a0, fp, %d\n", Nd->Var->Offset);
     return;
   }
 
@@ -134,9 +134,19 @@ static void genExpr(Node *Nd) {
 
 // 生成语句
 static void genStmt(Node *Nd) {
-  if (Nd->Kind == ND_EXPR_STMT) {
-    genExpr(Nd->LHS);
-    return;
+  switch(Nd->Kind){
+    case ND_RETURN:
+      genExpr(Nd->LHS);
+      // 无条件跳转语句，跳转到.L.return段
+      // j offset是 jal x0, offset的别名指令
+      printf("  j .L.return\n");
+      return;
+    // 生成表达式语句
+    case ND_EXPR_STMT:
+      genExpr(Nd->LHS);
+      return;
+    default:
+      break;
   }
 
   error("invalid statement");
@@ -189,6 +199,8 @@ void codegen(Function *Prog) {
   }
 
   // Epilogue，后语
+  // 输出return段标签
+  printf(".L.return:\n");  
   // 将fp的值改写回sp
   printf("  mv sp, fp\n");
   // 将最早fp保存的值弹栈，恢复fp。
