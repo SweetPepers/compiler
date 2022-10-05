@@ -343,3 +343,51 @@ main:
     return newNode(ND_BLOCK);
   }
 ```
+
+
+### 15 if
+- rvcc.h
+  - NodeKind::ND_IF
+  - Node
+    - Node *Cond; // 条件内的表达式
+    - Node *Then; // 符合条件后的语句
+    - Node *Els;  // 不符合条件后的语句
+- tokenize.c
+  关键字不再只有return, isKeyWord(Token *Tok) 判断是否为关键字
+- parse.c
+  ```c
+  // stmt = "return" expr ";"
+  //        | "if" "(" expr ")" stmt ("else" stmt)?
+  //        | "{" compoundStmt
+  //        | exprStmt
+  if "if":
+    Node *Nd = newNode(ND_IF);
+    并根据token对 Cond, Then, Els 赋值
+  ```
+  
+- codegen.c
+static int count 记录每个if else
+
+
+if 解释规则
+```c
+  case ND_IF: 
+    // 代码段计数
+    int C = count();
+    // 生成条件内语句
+    genExpr(Nd->Cond);
+    // 判断结果是否为0，为0则跳转到else标签
+    printf("  beqz a0, .L.else.%d\n", C);
+    // 生成符合条件后的语句
+    genStmt(Nd->Then);
+    // 执行完后跳转到if语句后面的语句
+    printf("  j .L.end.%d\n", C);
+    // else代码块，else可能为空，故输出标签
+    printf(".L.else.%d:\n", C);
+    // 生成不符合条件后的语句
+    if (Nd->Els)
+      genStmt(Nd->Els);
+    // 结束if语句，继续执行后面的语句
+    printf(".L.end.%d:\n", C);
+    return;`
+```

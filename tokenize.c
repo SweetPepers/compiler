@@ -1,6 +1,9 @@
 #include "rvcc.h"
 // 序列化输入
 
+
+
+
 // 输入的字符串
 static char *CurrentInput;
 
@@ -116,10 +119,24 @@ static int readPunct(char *Ptr) {
   return ispunct(*Ptr) ? 1 : 0;
 }
 
+// 判断是否为关键字
+static bool isKeyword(Token *Tok) {
+  // 关键字列表
+  static char *Kw[] = {"return", "if", "else"};
+  int lenKw = sizeof(Kw) / sizeof(*Kw);
+  // 遍历关键字列表匹配
+  for (int i = 0; i < lenKw; ++i) {
+    if (equal(Tok, Kw[i]))
+      return true;
+  }
+
+  return false;
+}
+
 // 将名为“return”的终结符转为KEYWORD
 static void convertKeywords(Token *Tok) {
   for (Token *T = Tok; T->Kind != TK_EOF; T = T->Next) {
-    if (equal(T, "return"))
+    if (isKeyword(Tok))
       T->Kind = TK_KEYWORD;
   }
 }

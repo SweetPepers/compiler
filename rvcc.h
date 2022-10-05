@@ -13,10 +13,10 @@
 //
 // 共用头文件，定义了多个文件间共同使用的函数和数据
 //
+
 //
 // 终结符分析，词法分析
-//
-
+// tokenize.c
 // 为每个终结符都设置种类来表示
 typedef enum {
   TK_IDENT,   // 标记符, 可以表示变量名 函数名等
@@ -26,6 +26,7 @@ typedef enum {
   TK_EOF,     // 文件终止符，即文件的最后
 } TokenKind;
 
+// parse.c
 // 终结符结构体
 typedef struct Token Token;
 struct Token {
@@ -82,6 +83,7 @@ typedef enum {
   ND_LE,        // <=
   ND_ASSIGN,    // 赋值 = 
   ND_RETURN,    // 返回
+  ND_IF,        // if
   ND_BLOCK,     // {...}, 代码块
   ND_EXPR_STMT, // 表达式语句
   ND_VAR,       // 变量
@@ -94,6 +96,12 @@ struct Node {
   Node *Next;    // 下一节点，指代下一语句
   Node *LHS;     // 左部，left-hand side
   Node *RHS;     // 右部，right-hand side
+  
+  // "if"语句
+  Node *Cond; // 条件内的表达式
+  Node *Then; // 符合条件后的语句
+  Node *Els;  // 不符合条件后的语句
+
   Node *Body;    // 代码块 
   Obj *Var;      // 存储ND_VAR种类的变量
   int Val;       // 存储ND_NUM种类的值
