@@ -417,7 +417,7 @@ if 解释规则
   Nd->Then = stmt
 ```
 - codegen.c
-`{for (i=0; i<=10; i=i+1) j=i+j; return j; } => 55`
+`{j = 0;for (i=0; i<=10; i=i+1) j=i+j; return j; } => 55`
 ```
   .globl main
 main:
@@ -490,3 +490,16 @@ main:
   addi sp, sp, 8
   ret
 ```
+
+### 17 while
+while 本质上和for一样
+```c
+// stmt = "return" expr ";"
+//        | "if" "(" expr ")" stmt ("else" stmt)?
+//        | "for" "(" exprStmt expr? ";" expr? ")" stmt
+//        | "while" "(" expr ")" stmt
+//        | "{" compoundStmt
+//        | exprStmt
+```
+
+### 18 更新辅助信息

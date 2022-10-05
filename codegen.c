@@ -141,12 +141,13 @@ static void genExpr(Node *Nd) {
 // 生成语句
 static void genStmt(Node *Nd) {
   switch(Nd->Kind){
-    // 生成for循环语句
+    // 生成for / while循环语句
     case ND_FOR: {
       // 代码段计数
       int C = count();
       // 生成初始化语句
-      genStmt(Nd->Init);
+      if (Nd->Init)
+        genStmt(Nd->Init);
       // 输出循环头部标签
       printf(".L.begin.%d:\n", C);
       // 处理循环条件语句
