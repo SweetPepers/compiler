@@ -308,3 +308,29 @@ main:
 
 - codegen.c
   现在stmt由return语句或者exprstmt组成, 写一个switch分别翻译, 并在epilogue上加入 `.L.return`的跳转标签
+
+### 13 支持{...}代码块
+
+
+- rcvv.h
+  - NodeKind::ND_BLOCK
+  - Node::Body // 代码块
+
+- parse.c
+// program = "{" compoundStmt
+// compoundStmt = stmt* "}"
+// stmt = "return" expr ";" | "{" compoundStmt | exprStmt
+// exprStmt = expr ";"
+
+  parse()  为{}, 必须以{开始, 到}结束, 多个stmt用链表存储
+- codegen.c
+  ```c
+  genStmt()
+   switch(Nd->Kind){
+    // 生成代码块，遍历代码块的语句链表
+    case ND_BLOCK: 从Nd->Body开始一个一个按照stmt解析
+    ...
+    }
+  ```
+
+### 14 
