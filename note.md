@@ -391,3 +391,102 @@ if 解释规则
     printf(".L.end.%d:\n", C);
     return;`
 ```
+
+
+### 16 for
+- rvcc.h
+  ND_FOR
+  - Node
+    - Node *Init; // 初始化语句
+    - Node *Inc;  // 递增语句
+- tokenize.c 
+  简单把isKeyword 加上一个for就行
+- parse.c
+```c
+  // stmt = "return" expr ";"
+  //        | "if" "(" expr ")" stmt ("else" stmt)?
+  //        | "for" "(" exprStmt expr? ";" expr? ")" stmt
+  //        | "{" compoundStmt
+  //        | exprStmt
+```
+ `"for" "(" exprStmt expr? ";" expr? ")" stmt`
+```c
+  Nd->Init = exprStmt
+  Nd->Cond = expr? ";"
+  Nd->Inc = expr?
+  Nd->Then = stmt
+```
+- codegen.c
+`{for (i=0; i<=10; i=i+1) j=i+j; return j; } => 55`
+```
+  .globl main
+main:
+  addi sp, sp, -8
+  sd fp, 0(sp)
+  mv fp, sp
+  addi sp, sp, -16
+  addi a0, fp, -16
+  addi sp, sp, -8
+  sd a0, 0(sp)
+  li a0, 0
+  ld a1, 0(sp)
+  addi sp, sp, 8
+  sd a0, 0(a1)
+  addi a0, fp, -8
+  addi sp, sp, -8
+  sd a0, 0(sp)
+  li a0, 0             # init 
+  ld a1, 0(sp)
+  addi sp, sp, 8
+  sd a0, 0(a1)
+.L.begin.1:            # Cond
+  li a0, 10
+  addi sp, sp, -8
+  sd a0, 0(sp)
+  addi a0, fp, -8
+  ld a0, 0(a0)
+  ld a1, 0(sp)
+  addi sp, sp, 8
+  slt a0, a1, a0
+  xori a0, a0, 1
+  beqz a0, .L.end.1
+  addi a0, fp, -16     # Then
+  addi sp, sp, -8
+  sd a0, 0(sp)
+  addi a0, fp, -16
+  ld a0, 0(a0)
+  addi sp, sp, -8
+  sd a0, 0(sp)
+  addi a0, fp, -8
+  ld a0, 0(a0)
+  ld a1, 0(sp)
+  addi sp, sp, 8
+  add a0, a0, a1
+  ld a1, 0(sp)
+  addi sp, sp, 8
+  sd a0, 0(a1)
+  addi a0, fp, -8
+  addi sp, sp, -8
+  sd a0, 0(sp)
+  li a0, 1
+  addi sp, sp, -8
+  sd a0, 0(sp)
+  addi a0, fp, -8
+  ld a0, 0(a0)
+  ld a1, 0(sp)
+  addi sp, sp, 8
+  add a0, a0, a1
+  ld a1, 0(sp)
+  addi sp, sp, 8
+  sd a0, 0(a1)
+  j .L.begin.1
+.L.end.1:             # end
+  addi a0, fp, -16
+  ld a0, 0(a0)
+  j .L.return
+.L.return:
+  mv sp, fp
+  ld fp, 0(sp)
+  addi sp, sp, 8
+  ret
+```
