@@ -135,8 +135,8 @@ static bool isKeyword(Token *Tok) {
 
 // 将名为“return”的终结符转为KEYWORD
 static void convertKeywords(Token *Tok) {
-  for (Token *T = Tok; T->Kind != TK_EOF; T = T->Next) {
-    if (isKeyword(Tok))
+  for (Token *T = Tok; T->Kind == TK_IDENT; T = T->Next) {
+    if (isKeyword(T))
       T->Kind = TK_KEYWORD;
   }
 }

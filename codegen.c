@@ -40,6 +40,7 @@ static void pop(char *Reg) {
 // 如果报错，说明节点不在内存中
 static void genAddr(Node *Nd) {
   if (Nd->Kind == ND_VAR) {
+    // 偏移量是相对于fp的    
     printf("  addi a0, fp, %d\n", Nd->Var->Offset);
     return;
   }
