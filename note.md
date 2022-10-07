@@ -538,3 +538,14 @@ static Node *add(Token **Rest, Token *Tok) {
 }
 
 ```
+### 20 支持一元& *运算符
+主要难点在于代码生成节点
+
+- rvcc.h
+  添加两个node类型 ND_ADDR, ND_DEREF(dereference)
+- parse.c 
+  新语法`unary = ("+" | "-" | "*" | "&") unary | primary`简单在unary加两个类型即可
+- codegen.c
+  对于取地址函数, 目前只有变量存在地址, 且该函数(genAddr)的调用者只有genExpr, 
+  - 对于*解引用, 将节点左部的结果按照expr生成代码,结果存入a0, 然后将a0当地址来使用 `ld a0, 0(a0)`
+  - 对于&取址, 直接把左部的地址存入a0即可, 现在的左部可以为变量,或者解引用*语句, &*直接怼掉, 直接解析后面的Nd->LHS即可 

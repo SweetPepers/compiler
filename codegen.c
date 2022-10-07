@@ -36,13 +36,23 @@ static void pop(char *Reg) {
   Depth--;
 }
 
+static void genExpr(Node *Nd);
+
 // 计算给定节点的绝对地址
 // 如果报错，说明节点不在内存中
 static void genAddr(Node *Nd) {
-  if (Nd->Kind == ND_VAR) {
-    // 偏移量是相对于fp的    
-    printf("  addi a0, fp, %d\n", Nd->Var->Offset);
-    return;
+  switch (Nd->Kind){
+    case ND_VAR:
+      // 偏移量是相对于fp的    
+      printf("  addi a0, fp, %d\n", Nd->Var->Offset);
+      return;
+    case ND_DEREF:
+      // 解引用*
+      genExpr(Nd->LHS);
+      return;
+
+    default:
+      break;
   }
 
   errorTok(Nd->Tok, "not an lvalue");
@@ -79,6 +89,16 @@ static void genExpr(Node *Nd) {
     genExpr(Nd->RHS);
     pop("a1");
     printf("  sd a0, 0(a1)\n");
+    return;
+  // 解引用 *   *addr  load addr to a0   then load 0(a0) to a0
+  case ND_DEREF:
+    genExpr(Nd->LHS);
+    printf("  # 读取a0中存放的地址, 得到的值存入a0\n");
+    printf("  ld a0, 0(a0)\n");
+    return;
+  // 取地址
+  case ND_ADDR: // &a / & *a
+    genAddr(Nd->LHS);
     return;
   default:
     break;
