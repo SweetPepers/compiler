@@ -14,6 +14,10 @@
 // 共用头文件，定义了多个文件间共同使用的函数和数据
 //
 
+typedef struct Type Type;
+typedef struct Token Token;
+
+
 //
 // 终结符分析，词法分析
 // tokenize.c
@@ -28,7 +32,7 @@ typedef enum {
 
 // parse.c
 // 终结符结构体
-typedef struct Token Token;
+
 struct Token {
   TokenKind Kind; // 种类
   Token *Next;    // 指向下一终结符
@@ -98,6 +102,8 @@ struct Node {
   NodeKind Kind; // 节点种类
   Node *Next;    // 下一节点，指代下一语句
   Token *Tok;    // 节点对应的终结符
+  Type *Ty;      // 节点中数据的类型
+
   Node *LHS;     // 左部，left-hand side
   Node *RHS;     // 右部，right-hand side
   
@@ -112,6 +118,29 @@ struct Node {
   Obj *Var;      // 存储ND_VAR种类的变量
   int Val;       // 存储ND_NUM种类的值
 };
+
+//
+// 类型系统
+//
+
+typedef enum {
+  TY_INT, // int整型
+  TY_PTR, // 指针
+} TypeKind;
+
+struct Type{
+  TypeKind Kind;  // 种类
+  Type *Base;     // 指向的类型
+};
+
+// 全局变量
+extern Type *TyInt;
+
+// 判断是否为整型
+bool isInteger(Type *TY);
+// 为节点内的所有节点添加类型
+void addType(Node *Nd);
+
 
 // 语法解析入口函数
 Function *parse(Token *Tok);

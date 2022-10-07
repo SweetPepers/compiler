@@ -549,3 +549,76 @@ static Node *add(Token **Rest, Token *Tok) {
   对于取地址函数, 目前只有变量存在地址, 且该函数(genAddr)的调用者只有genExpr, 
   - 对于*解引用, 将节点左部的结果按照expr生成代码,结果存入a0, 然后将a0当地址来使用 `ld a0, 0(a0)`
   - 对于&取址, 直接把左部的地址存入a0即可, 现在的左部可以为变量,或者解引用*语句, &*直接怼掉, 直接解析后面的Nd->LHS即可 
+
+
+### 21 支持指针的算术运算
+类型改变了语法但**暂时**和代码生成没有关系, 所有类型大小目前都为8
+目前的类型只有 指针及int类型  TY_INT, // int整型    TY_PTR, // 指针
+
+- rvcc.h
+AST节点中添加type信息  `Type *Node::Ty`
+
+类型系统需要的数据结构
+```c
+typedef enum {
+  TY_INT, // int整型
+  TY_PTR, // 指针
+} TypeKind;
+
+struct Type{
+  TypeKind Kind;  // 种类
+  Type *Base;     // 指向的类型
+};
+
+// 全局变量
+extern Type *TyInt;
+```
+需要的函数
+```c
+// 判断是否为整型
+bool isInteger(Type *TY);
+// 为节点内的所有节点添加类型
+void addType(Node *Nd);
+```
+
+添加新文件
+- type.c
+函数
+  - `Type *pointerTo(Type *Base)` 生成一个指向Base的TY_PTR的 Type结构
+  - `void addType(Node *Nd)` 递归给语法树中的节点添加类型 先递归再判断类型
+  ```c
+    // 递归访问所有节点以增加类型
+    addType(Nd->LHS);
+    addType(Nd->RHS);
+    addType(Nd->Cond);
+    addType(Nd->Then);
+    addType(Nd->Els);
+    addType(Nd->Init);
+    addType(Nd->Inc);
+
+    // 访问链表内的所有节点以增加类型
+    for (Node *N = Nd->Body; N; N = N->Next)
+      addType(N);
+  ```
+  判断类型
+    - ND_ADD, ND_SUB, ND_MUL, ND_DIV, ND_NEG, ND_ASSIGN: 设置为左值的类型
+    - ND_EQ, ND_NE, ND_LT, ND_LE, ND_VAR, ND_NUM: int类型
+    - ND_ADDR: & 使用pointerTo函数 设置为指向左值类型的ND_PTR类型
+    - ND_DEREF:* 解引用, 左值要是指针, 设置为指针指向内容(`Nd->LHS->Ty->Base`)的类型, 否则设置为int, 嵌套(`&***&&(int)`)也会嵌套下去
+
+- parse.c
+  主要针对指针算术运算(+ or -)以及节点的类型做了修改
+  - 节点类型, 在构造完AST后, 用`addType`函数为节点添加类型信息, 所有类型大小目前都为8
+  newAdd(newSub)替换原来的直接构建, newAdd(newSub)判断左部右部的类型进行响应的修改, 同时注意, 此步骤需要在构建AST中就需要知道节点类型, 所以进入函数需要先
+  ```c
+    addType(LHS);
+    addType(RHS);
+  ```
+  - add:
+    - num+num: 正常构建
+    - ptr+ptr: 错误
+    - ptr + num (num + ptr) ==> ptr + num * 8
+  - sub:
+    - num-num : 正常构造
+    - ptr - num  ==>  ptr - 8*num
+    - ptr - ptr : 返回两只真之间的元素数量: ==> (ptr - ptr)/8
