@@ -45,7 +45,7 @@ static void genAddr(Node *Nd) {
     return;
   }
 
-  error("not an lvalue");
+  errorTok(Nd->Tok, "not an lvalue");
 }
 
 // 生成表达式
@@ -136,7 +136,7 @@ static void genExpr(Node *Nd) {
     break;
   }
 
-  error("invalid expression");
+  errorTok(Nd->Tok, "invalid expression");
 }
 
 // 生成语句
@@ -210,7 +210,7 @@ static void genStmt(Node *Nd) {
       break;
   }
 
-  error("invalid statement");
+  errorTok(Nd->Tok, "invalid statement");
 }
 
 

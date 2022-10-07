@@ -505,4 +505,36 @@ while 本质上和for一样
 ### 18 更新辅助信息
 简单的把代码生成部分每段打印个注释
 
-### 19 
+### 19 为节点添加相应的终结符，以改进报错信息
+AST中每个节点添加 Tok结构
+
+QUESTION:
+
+解析正则表达式带*的  怎么停止的??
+`add = mul ("+" mul | "-" mul)*`
+```c 
+static Node *add(Token **Rest, Token *Tok) {
+  // mul
+  Node *Nd = mul(&Tok, Tok);
+
+  // ("+" mul | "-" mul)*
+  while (true) {
+    Token *Start = Tok;
+    // "+" mul
+    if (equal(Tok, "+")) {
+      Nd = newBinary(ND_ADD, Nd, mul(&Tok, Tok->Next), Start);
+      continue;
+    }
+
+    // "-" mul
+    if (equal(Tok, "-")) {
+      Nd = newBinary(ND_SUB, Nd, mul(&Tok, Tok->Next), Start);
+      continue;
+    }
+
+    *Rest = Tok;
+    return Nd;  // 瞎了艹, return在while里面, 之前还看清楚的
+  }
+}
+
+```
