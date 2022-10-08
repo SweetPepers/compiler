@@ -7,12 +7,14 @@
 Obj *Locals;
 
 // 语法
-// program = "{" compoundStmt
+// program = functionDefinition*
+// functionDefinition = declspec declarator"{" compoundStmt*
+// declspec = "int"
+// declarator = "*"* ident typeSuffix
 // compoundStmt = (declaration | stmt)* "}"
+// typeSuffix = ("(" ")")?
 // declaration =
 //         declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
-// declspec = "int"
-// declarator = "*"* ident
 // stmt = "return" expr ";"
 //        | "if" "(" expr ")" stmt ("else" stmt)?
 //        | "for" "(" exprStmt expr? ";" expr? ")" stmt
@@ -30,7 +32,10 @@ Obj *Locals;
 // primary = "(" expr ")" | ident func-args? | num
 
 // funcall = ident "(" (assign ("," assign)*)? ")"
+static Type *declspec(Token **Rest, Token *Tok);
+static Type *declarator(Token **Rest, Token *Tok, Type *Ty);
 static Node *compoundStmt(Token **Rest, Token *Tok);
+static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty);
 static Node *declaration(Token **Rest, Token *Tok);
 static Node *stmt(Token **Rest, Token *Tok);
 static Node *exprStmt(Token **Rest, Token *Tok);
@@ -118,7 +123,7 @@ static Type *declspec(Token **Rest, Token *Tok) {
   return TyInt;
 }
 
-// declarator = "*"* ident
+// declarator = "*"* ident typeSuffix
 static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
   // "*"*
   // 构建所有的（多重）指针
@@ -128,10 +133,22 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
   if (Tok->Kind != TK_IDENT)
     errorTok(Tok, "expected a variable name");
 
+  // typeSuffix
+  Ty = typeSuffix(Rest, Tok->Next, Ty);
   // ident
-  // 变量名
+  // 变量名 or 函数名
   Ty->Name = Tok;
-  *Rest = Tok->Next;
+  return Ty;
+}
+
+// typeSuffix = ("(" ")")?
+static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty) {
+  // ("(" ")")?
+  if (equal(Tok, "(")) {
+    *Rest = skip(Tok->Next, ")");
+    return funcType(Ty);
+  }
+  *Rest = Tok;
   return Ty;
 }
 
@@ -581,25 +598,38 @@ static Node *primary(Token **Rest, Token *Tok) {
   return NULL;
 }
 
-// 语法解析入口函数
-// Node *parse(Token *Tok) {
-//   Node *Nd = expr(&Tok, Tok);
-//   if (Tok->Kind != TK_EOF)
-//     errorTok(Tok, "extra token");
-//   return Nd;
-// }
+// functionDefinition = declspec declarator"{" compoundStmt*
+static Function *function(Token **Rest, Token *Tok) {
+  // declspec
+  Type *Ty = declspec(&Tok, Tok);
+  // declarator? ident "(" ")"
+  Ty = declarator(&Tok, Tok, Ty);
 
-// 语法解析入口函数
-// program = "{" compoundStmt
-Function *parse(Token *Tok) {
-  // "{"
+  // 清空全局变量Locals
+  Locals = NULL;
+
+  // 从解析完成的Ty中读取ident  
+  // 这里没有node, 所以无法从node中找到name
+  Function *Fn = calloc(1, sizeof(Function));
+  Fn->Name = getIdent(Ty->Name);
+  // Fn->Name = getIdent(Tok);
+
   Tok = skip(Tok, "{");
-
   // 函数体存储语句的AST，Locals存储变量
-  Function *Prog = calloc(1, sizeof(Function));
-  Prog->Body = compoundStmt(&Tok, Tok);
-  // 构造完AST后, 为节点添加类型信息
-  addType(Prog->Body);
-  Prog->Locals = Locals;
-  return Prog;
+  Fn->Body = compoundStmt(Rest, Tok);
+  Fn->Locals = Locals;
+  return Fn;
+}
+
+// 语法解析入口函数
+// program = functionDefinition*
+Function *parse(Token *Tok) {
+  Function Head = {};
+  Function *Cur = &Head;
+
+  while (Tok->Kind != TK_EOF)
+    Cur = Cur->Next = function(&Tok, Tok);
+  // Cur->Next = function(&Tok, Tok);
+  // Cur = Cur->Next;
+  return Head.Next;
 }

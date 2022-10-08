@@ -736,3 +736,64 @@ EOF
   第1-6个参数分别对应`"a0", "a1", "a2", "a3", "a4", "a5"`
 
 
+### 25 支持零参数函数定义
+新的语法
+// program = functionDefinition*
+// functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
+// declspec = "int"
+// declarator = "*"* ident typeSuffix
+// compoundStmt = (declaration | stmt)* "}"
+// typeSuffix = ("(" ")")?
+
+
+// functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
+```c
+int main(){
+
+}
+// TODO 这样是个啥??
+int ** main() myfunc(){
+  compoundStmt
+}
+```
+- rvcc.h
+  添加类型:TypeKind::TY_FUNC
+  仿照变量类型Obj改Function, 多个函数,增加`char *Name;      // 函数名` 和 `Function *Next;  // 下一函数`
+  Type增加  `Type *ReturnTy; // 函数返回的类型`
+- type.c
+  `Type *funcType(Type *ReturnTy)`新建一个有ReturnTy的TY_FUNC的Type
+- parse.c
+  新语法
+  ```c
+  // program = functionDefinition*
+  // functionDefinition = declspec declarator"{" compoundStmt*
+  // declspec = "int"
+  // declarator = "*"* ident typeSuffix
+  // compoundStmt = (declaration | stmt)* "}"
+  // typeSuffix = ("(" ")")?
+  ```
+  parse主体改为function
+  `functionDefinition = declspec declarator"{" compoundStmt*`
+  function中给Fn的`Name` `Body` `Locals`赋值
+- codegen.c
+  因为改为了多个函数, 所以要为每个函数分配参数啥的
+  每个函数各自计算变量的offset
+  然后用一个地址空间, 不过不用担心, 栈的赋值是相对赋值
+  ```c
+  printf("  addi sp, sp, -16\n"); // 分配两个位置
+  printf("  sd ra, 8(sp)\n");
+  // 将fp压入栈中，保存fp的值
+  printf("  sd fp, 0(sp)\n");
+  // 将sp写入fp
+  printf("  mv fp, sp\n");
+  ```
+  ```c
+  // 代码生成入口函数，包含代码块的基础信息
+  void codegen(Function *Prog) {
+    assignLVarOffsets(Prog);
+    // 为每个函数单独生成代码
+    for (Function *Fn = Prog; Fn; Fn = Fn->Next) {
+      genFun(Fn);
+    }
+  }
+  ```

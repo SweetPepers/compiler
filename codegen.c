@@ -22,6 +22,9 @@ static int Depth;
 // 用于函数参数的寄存器们
 static char *ArgReg[] = {"a0", "a1", "a2", "a3", "a4", "a5"};
 
+// 当前的函数
+static Function *CurrentFn;
+
 // 压栈，将结果临时压入栈中备用
 // sp为栈指针，栈反向向下增长，64位下，8个字节为一个单位，所以sp-8
 // 当前栈指针的地址就是sp，将a0的值压入栈
@@ -244,7 +247,8 @@ static void genStmt(Node *Nd) {
       genExpr(Nd->LHS);
       // 无条件跳转语句，跳转到.L.return段
       // j offset是 jal x0, offset的别名指令
-      printf("  j .L.return\n");
+      printf("  # 跳转到.L.return.%s段\n", CurrentFn->Name);
+      printf("  j .L.return.%s\n", CurrentFn->Name);
       return;
     // 生成表达式语句
     case ND_EXPR_STMT:
@@ -260,23 +264,28 @@ static void genStmt(Node *Nd) {
 
 // 根据变量的链表计算出偏移量
 static void assignLVarOffsets(Function *Prog) {
-  int Offset = 0;
-  // 读取所有变量
-  for (Obj *Var = Prog->Locals; Var; Var = Var->Next) {
-    // 每个变量分配8字节
-    Offset += 8;
-    // 为每个变量赋一个偏移量，或者说是栈中地址
-    Var->Offset = -Offset;
+  // 为每个函数计算其变量所用的栈空间
+  for (Function *Fn = Prog; Fn; Fn = Fn->Next) {
+    int Offset = 0;
+    // 读取所有变量
+    for (Obj *Var = Fn->Locals; Var; Var = Var->Next) {
+      // 每个变量分配8字节
+      Offset += 8;
+      // 为每个变量赋一个偏移量，或者说是栈中地址
+      Var->Offset = -Offset;
+    }
+    // 将栈对齐到16字节
+    Fn->StackSize = alignTo(Offset, 16);
   }
-  // 将栈对齐到16字节
-  Prog->StackSize = alignTo(Offset, 16);
 }
 
-// 代码生成入口函数，包含代码块的基础信息
-void codegen(Function *Prog) {
-  assignLVarOffsets(Prog);
-  printf("  .globl main\n");
-  printf("main:\n");
+void genFun(Function *Fn){
+  printf("\n  # 定义全局%s段\n", Fn->Name);
+  printf("  .globl %s\n", Fn->Name);
+  printf("# =====%s段开始===============\n", Fn->Name);
+  printf("# %s段标签\n", Fn->Name);
+  printf("%s:\n", Fn->Name);
+  CurrentFn = Fn;
 
   // 栈布局
   //-------------------------------// sp
@@ -300,15 +309,15 @@ void codegen(Function *Prog) {
   printf("  mv fp, sp\n");
 
   // 偏移量为实际变量所用的栈大小
-  printf("  addi sp, sp, -%d\n", Prog->StackSize);
+  printf("  addi sp, sp, -%d\n", Fn->StackSize);
 
   // 生成语句链表的代码
-  genStmt(Prog->Body);
+  genStmt(Fn->Body);
   assert(Depth == 0);
 
   // Epilogue，后语
   // 输出return段标签
-  printf(".L.return:\n");  
+  printf(".L.return.%s:\n", Fn->Name);
   // 将fp的值改写回sp
   printf("  mv sp, fp\n");
   // 将最早fp保存的值弹栈，恢复fp。
@@ -317,7 +326,16 @@ void codegen(Function *Prog) {
   printf("  # 将ra寄存器弹栈,恢复ra的值\n");
   printf("  ld ra, 8(sp)\n");
   printf("  addi sp, sp, 16\n");
-  // 返回
 
+  // 返回
   printf("  ret\n");
+}
+
+// 代码生成入口函数，包含代码块的基础信息
+void codegen(Function *Prog) {
+  assignLVarOffsets(Prog);
+  // 为每个函数单独生成代码
+  for (Function *Fn = Prog; Fn; Fn = Fn->Next) {
+    genFun(Fn);
+  }
 }

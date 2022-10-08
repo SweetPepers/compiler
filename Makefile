@@ -11,6 +11,10 @@ OBJS=$(SRCS:.c=.o)
 # $@表示目标文件，此处为rvcc，$^表示依赖文件，此处为$(OBJS)
 rvcc: $(OBJS)
 # 将多个*.o文件编译为rvcc
+	$(CC) $(CFLAGS) -o $@ $^
+
+debug: $(OBJS)
+# 将多个*.o文件编译为rvcc
 	$(CC) $(CFLAGS) -o $@ $^ -g
 
 # 所有的可重定位文件依赖于rvcc.h的头文件
