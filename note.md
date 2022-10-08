@@ -712,3 +712,27 @@ EOF
   然后 fp之外多一个ra寄存器, sp初始减16
 
 
+### 24 支持最多6个参数的函数调用
+对于 fun语法 核心两个指针
+- rvcc.h
+  ```c
+  struct Node{
+    // 函数调用
+    char *FuncName; // 函数名
+    Node *Args; // 函数参数  new
+  }
+  ```
+- parse.c
+  语法更新为
+  ```c
+  // primary = "(" expr ")" | ident func-args? | num
+
+  // funcall = ident "(" (assign ("," assign)*)? ")"
+  ```
+  解析primary时, 当前`Tok->Kind == TK_IDENT && Tok->Next == ")"`则进入 `funcall()`
+多条语句都用链表存储, 结果放入Nd->Args中
+- codegen.c
+  添加6个寄存器对应调用参数, 解析`Args`时, 数数量, 并将结果依次压入栈中然后倒着pop出来
+  第1-6个参数分别对应`"a0", "a1", "a2", "a3", "a4", "a5"`
+
+
