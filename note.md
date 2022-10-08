@@ -622,3 +622,65 @@ void addType(Node *Nd);
     - num-num : 正常构造
     - ptr - num  ==>  ptr - 8*num
     - ptr - ptr : 返回两只真之间的元素数量: ==> (ptr - ptr)/8
+
+### 22 支持int关键字以及定义变量
+发生了一个段错误哈哈
+测试`{ int i=0; while(i<10) { i=i+1; } return i; }`
+在parse.c:393, 此时Loc = `$1 = 0x7fffffffdf38 "+1; } return i; }"` 出错
+右子树出错了, 右子树没有赋值
+```c
+(gdb) p RHS->Ty
+$3 = (Type *) 0x0
+```
+
+破案了: parse.c::addType()函数, 忘记加入对于ND_NUM类型的type赋值了(自己删的哈哈)
+
+- rvcc.h
+给变量 Obj加入类型 `Type *Obj::Ty`
+给type加入name  `Token* Type::Name` (TODO : 为什么是Token类型的??)
+
+- type.c
+  ND_VAR的type不再直接设置为INT, 改为Nd->Var->Ty
+  另外解引用只能对指针进行, 不再对INT适用
+- token.c
+  - 添加函数 `consume()`:消耗指定的Token, 返回`true/false`, 与`skip()`相比, 不强制要求存在(`skip()`不存在会直接报错, 退出程序)
+- parse.c
+  语法添加声明
+  ```c
+    // compoundStmt = (declaration | stmt)* "}"
+    // declaration =
+    //         declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
+    // declspec = "int"
+    // declarator = "*"* ident
+  ```
+  新语法对compoundStmt小幅修改, 若开头为 `"int"`则进入`declaration()`
+  - `declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"`
+    `              int         a          =  expr     ,     b         =  expr2  ;`
+    `int a, b = 10;`
+    `int;` 可以单独出现???  TODO : 搞懂这一句
+  - `Node *declaration(Token **Rest, Token *Tok)`
+    这里把每个声明短句都看作一个句子, 就是一行声明语句可能为多个句子, 用list存储一下, 存储到block里面
+    类似于这种
+    ```c
+    int {
+      a = 1,
+      b = 2, 
+      c = 3,
+      d = 4
+    };
+    ```
+    左边为VAR, 右边为assign
+    ```c
+    // 解析“=”后面的Token
+    Node *LHS = newVarNode(Var, Ty->Name);
+    // 解析递归赋值语句
+    Node *RHS = assign(&Tok, Tok->Next);
+    Node *Node = newBinary(ND_ASSIGN, LHS, RHS, Tok);
+    // 存放在表达式语句中
+    Cur->Next = newUnary(ND_EXPR_STMT, Node, Tok);
+    ```
+  - `Type *declarator(Token **Rest, Token *Tok, Type *Ty)`// declarator = "*"* ident
+  - `char *getIdent(Token *Tok)` Obj *Var = newLVar(getIdent(Ty->Name), Ty), 就获取一下变量的名字
+
+
+

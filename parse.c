@@ -8,7 +8,11 @@ Obj *Locals;
 
 // 语法
 // program = "{" compoundStmt
-// compoundStmt = stmt* "}"
+// compoundStmt = (declaration | stmt)* "}"
+// declaration =
+//         declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
+// declspec = "int"
+// declarator = "*"* ident
 // stmt = "return" expr ";"
 //        | "if" "(" expr ")" stmt ("else" stmt)?
 //        | "for" "(" exprStmt expr? ";" expr? ")" stmt
@@ -25,6 +29,7 @@ Obj *Locals;
 // unary = ("+" | "-" | "*" | "&") unary | primary
 // primary = "(" expr ")" | ident | num
 static Node *compoundStmt(Token **Rest, Token *Tok);
+static Node *declaration(Token **Rest, Token *Tok);
 static Node *stmt(Token **Rest, Token *Tok);
 static Node *exprStmt(Token **Rest, Token *Tok);
 static Node *expr(Token **Rest, Token *Tok);
@@ -86,13 +91,89 @@ static Node *newVarNode(Obj *Var, Token *Tok) {
 }
 
 // 在链表中新增一个变量
-static Obj *newLVar(char *Name) {
+static Obj *newLVar(char *Name, Type *Ty) {
   Obj *Var = calloc(1, sizeof(Obj));
   Var->Name = Name;
+  Var->Ty = Ty;
   // 将变量插入头部
   Var->Next = Locals;
   Locals = Var;
   return Var;
+}
+
+// 获取标识符
+static char *getIdent(Token *Tok) {
+  if (Tok->Kind != TK_IDENT)
+    errorTok(Tok, "expected an identifier");
+  return strndup(Tok->Loc, Tok->Len);
+}
+
+// declspec = "int"
+// declarator specifier
+static Type *declspec(Token **Rest, Token *Tok) {
+  *Rest = skip(Tok, "int");
+  return TyInt;
+}
+
+// declarator = "*"* ident
+static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
+  // "*"*
+  // 构建所有的（多重）指针
+  while (consume(&Tok, Tok, "*"))
+    Ty = pointerTo(Ty);
+
+  if (Tok->Kind != TK_IDENT)
+    errorTok(Tok, "expected a variable name");
+
+  // ident
+  // 变量名
+  Ty->Name = Tok;
+  *Rest = Tok->Next;
+  return Ty;
+}
+
+// declaration =
+//    declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
+static Node *declaration(Token **Rest, Token *Tok) {
+  // declspec
+  // 声明的 基础类型
+  Type *BaseTy = declspec(&Tok, Tok);
+
+  Node Head = {};
+  Node *Cur = &Head;
+  // 对变量声明次数计数
+  int I = 0;
+
+  // (declarator ("=" expr)? ("," declarator ("=" expr)?)*)?
+  while (!equal(Tok, ";")) {
+    // 第1个变量不必匹配 ","
+    if (I++ > 0)
+      Tok = skip(Tok, ",");
+
+    // declarator
+    // 声明获取到变量类型，包括变量名
+    Type *Ty = declarator(&Tok, Tok, BaseTy);
+    Obj *Var = newLVar(getIdent(Ty->Name), Ty);
+
+    // 如果不存在"="则为变量声明，不需要生成节点，已经存储在Locals中了
+    if (!equal(Tok, "="))
+      continue;
+
+    // 解析“=”后面的Token
+    Node *LHS = newVarNode(Var, Ty->Name);
+    // 解析递归赋值语句
+    Node *RHS = assign(&Tok, Tok->Next);
+    Node *Node = newBinary(ND_ASSIGN, LHS, RHS, Tok);
+    // 存放在表达式语句中
+    Cur->Next = newUnary(ND_EXPR_STMT, Node, Tok);
+    Cur = Cur->Next;
+  }
+
+  // 将所有表达式语句，存放在代码块中
+  Node *Nd = newNode(ND_BLOCK, Tok);
+  Nd->Body = Head.Next;
+  *Rest = Tok->Next;
+  return Nd;
 }
 
 // 解析语句
@@ -174,15 +255,21 @@ static Node *stmt(Token **Rest, Token *Tok) {
 }
 
 // 解析复合语句
-// compoundStmt = stmt* "}"
+// compoundStmt = (declaration | stmt)* "}"
 static Node *compoundStmt(Token **Rest, Token *Tok) {
   // 这里使用了和词法分析类似的单向链表结构
   Node *Nd = newNode(ND_BLOCK, Tok);  // 存储这里的tok
   Node Head = {};
   Node *Cur = &Head;
-  // stmt* "}"
+  // (declaration | stmt)* "}"
   while (!equal(Tok, "}")) {
-    Cur->Next = stmt(&Tok, Tok);
+    //declaration 
+    if(equal(Tok, "int")){
+      Cur->Next = declaration(&Tok, Tok);
+    }else {
+      // stmt
+      Cur->Next = stmt(&Tok, Tok);
+    }
     Cur = Cur->Next;
     // 构造完AST后，为节点添加类型信息    // TODO   为什么在这里给节点添加信息???  我放到下面了
     // addType(Cur);
@@ -449,10 +536,10 @@ static Node *primary(Token **Rest, Token *Tok) {
     Obj *Var = findVar(Tok);
     // 如果变量不存在，就在链表中新增一个变量
     if(!Var){
-      Var = newLVar(strndup(Tok->Loc, Tok->Len));  // Token --> Local
+      errorTok(Tok, "undefined variable");
     }
-      *Rest = Tok->Next;
-      return newVarNode(Var, Tok);
+    *Rest = Tok->Next;
+    return newVarNode(Var, Tok);
     
   }
 
