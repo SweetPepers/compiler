@@ -27,7 +27,8 @@ Obj *Locals;
 // add = mul ("+" mul | "-" mul)*
 // mul = unary ("*" unary | "/" unary)*
 // unary = ("+" | "-" | "*" | "&") unary | primary
-// primary = "(" expr ")" | ident | num
+// primary = "(" expr ")" | ident args? | num
+// args = "(" ")"
 static Node *compoundStmt(Token **Rest, Token *Tok);
 static Node *declaration(Token **Rest, Token *Tok);
 static Node *stmt(Token **Rest, Token *Tok);
@@ -514,7 +515,8 @@ static Node *unary(Token **Rest, Token *Tok) {
 }
 
 // 解析括号、数字、变量
-// primary = "(" expr ")" | ident | num
+// primary = "(" expr ")" | ident args? | num
+// args = "(" ")"
 static Node *primary(Token **Rest, Token *Tok) {
   // "(" expr ")"
   if (equal(Tok, "(")) {
@@ -530,8 +532,17 @@ static Node *primary(Token **Rest, Token *Tok) {
     return Nd;
   }
 
-  // ident   单变量
+  // ident args?
   if (Tok->Kind == TK_IDENT){
+    // 函数调用
+    // args = "(" ")"
+    if (equal(Tok->Next, "(")) {
+      Node *Nd = newNode(ND_FUNCALL, Tok);
+      // ident
+      Nd->FuncName = strndup(Tok->Loc, Tok->Len);
+      *Rest = skip(Tok->Next->Next, ")");
+      return Nd;
+    }
     // 查找变量
     Obj *Var = findVar(Tok);
     // 如果变量不存在，就在链表中新增一个变量

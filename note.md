@@ -657,7 +657,8 @@ $3 = (Type *) 0x0
   - `declaration = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"`
     `              int         a          =  expr     ,     b         =  expr2  ;`
     `int a, b = 10;`
-    `int;` 可以单独出现???  TODO : 搞懂这一句
+    `int;` 可以单独出现???  TODO : 搞懂这一句  
+    改成`declaration = declspec declarator ("=" expr)? ("," declarator ("=" expr)?)* ";"`这样不就可以了吗??
   - `Node *declaration(Token **Rest, Token *Tok)`
     这里把每个声明短句都看作一个句子, 就是一行声明语句可能为多个句子, 用list存储一下, 存储到block里面
     类似于这种
@@ -682,5 +683,32 @@ $3 = (Type *) 0x0
   - `Type *declarator(Token **Rest, Token *Tok, Type *Ty)`// declarator = "*"* ident
   - `char *getIdent(Token *Tok)` Obj *Var = newLVar(getIdent(Ty->Name), Ty), 就获取一下变量的名字
 
+
+### 插曲 episode
+```sh
+cat <<EOF | riscv64-linux-gnu-gcc -xc -c -o tmp2.o -
+int ret3() { return 3; }
+int ret5() { return 5; }
+EOF
+```
+cat 输出多行的方法
+```bash
+cat <<EOF
+content 内容
+EOF
+```
+然后加上管道就变成了后面的输入数据
+
+### 23 支持零参数函数调用
+主要是test.sh `cat <<EOF` 的用法
+语法  注意是函数调用, 不是函数声明
+// primary = "(" expr ")" | ident args? | num
+// args = "(" ")"
+- rvcc.h
+  添加 `NodeKind::ND_FUNCALL`
+  添加 `Node::char *FuncName; // 函数名`
+- parse.c 根据新语法简单修改即可
+- codegen.c  加一个`call %s\n", Nd->FuncName`
+  然后 fp之外多一个ra寄存器, sp初始减16
 
 

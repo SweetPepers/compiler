@@ -100,6 +100,11 @@ static void genExpr(Node *Nd) {
   case ND_ADDR: // &a / & *a
     genAddr(Nd->LHS);
     return;
+  // 函数调用
+  case ND_FUNCALL:
+    printf("\n  # 调用函数%s\n", Nd->FuncName);
+    printf("  call %s\n", Nd->FuncName);
+    return;
   default:
     break;
   }
@@ -256,16 +261,21 @@ void codegen(Function *Prog) {
 
   // 栈布局
   //-------------------------------// sp
-  //              fp                    
-  //-------------------------------// fp = sp-8
-  //            变量
-  //-------------------------------// sp=sp-8-StackSize
+  //              ra
+  //-------------------------------// ra = sp-8
+  //              fp
+  //-------------------------------// fp = sp-16
+  //             变量
+  //-------------------------------// sp = sp-16-StackSize
   //           表达式计算
   //-------------------------------//
 
   // Prologue, 前言
+  // 将ra寄存器压栈,保存ra的值
+  printf("  # 将ra寄存器压栈,保存ra的值\n");
+  printf("  addi sp, sp, -16\n"); // 分配两个位置
+  printf("  sd ra, 8(sp)\n");
   // 将fp压入栈中，保存fp的值
-  printf("  addi sp, sp, -8\n");
   printf("  sd fp, 0(sp)\n");
   // 将sp写入fp
   printf("  mv fp, sp\n");
@@ -284,7 +294,10 @@ void codegen(Function *Prog) {
   printf("  mv sp, fp\n");
   // 将最早fp保存的值弹栈，恢复fp。
   printf("  ld fp, 0(sp)\n");
-  printf("  addi sp, sp, 8\n");
+  // 将ra寄存器弹栈,恢复ra的值
+  printf("  # 将ra寄存器弹栈,恢复ra的值\n");
+  printf("  ld ra, 8(sp)\n");
+  printf("  addi sp, sp, 16\n");
   // 返回
 
   printf("  ret\n");
