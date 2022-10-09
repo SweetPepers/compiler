@@ -13,10 +13,6 @@ rvcc: $(OBJS)
 # 将多个*.o文件编译为rvcc
 	$(CC) $(CFLAGS) -o $@ $^
 
-debug: $(OBJS)
-# 将多个*.o文件编译为rvcc
-	$(CC) $(CFLAGS) -o $@ $^ -g
-
 # 所有的可重定位文件依赖于rvcc.h的头文件
 $(OBJS): rvcc.h
 

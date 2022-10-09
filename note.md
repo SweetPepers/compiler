@@ -819,3 +819,66 @@ int ** main() myfunc(){
 - codegen.c
   生成函数的时候将寄存器中的值load到参数地址中(`%d(fp)\n", ArgReg[I++]`)
 
+### 26 支持一维数组
+
+debug:
+```c
+return arrayOf(Ty, sz);
+// 这里写成了arrayOf(Ty->Base, sz);
+```
+Type->Base->Size 和 Base->size区别:
+准确说是理清Type 和 Type->Base的关系
+- Type->Base:只有当前Type为指针或者数组时才有意义, 也就是指针类型才有Base
+
+发现一个error(a quirk of the C grammar)
+```c
+  case ND_ADDR:{
+    Type *Ty = Nd->LHS->Ty;     // 外面不加{}的话, 声明语句会报错
+    if(Ty->Kind == TY_ARRAY)
+      Nd->Ty = pointerTo(Ty->Base);
+    else
+      Nd->Ty = pointerTo(Ty);
+    return;
+  }
+
+// 所以这东西语法是这样的
+// case expr: ("{" compoundStmt) | stmt*
+// 而stmt 如果不选择 "{" compoundStmt 是不会包含declaration语法的, 所以声明语句不行哈哈哈哈哈
+```
+
+节点一直没有Nd->Type, 破案了妈的  不知道哪一版重写function函数的时候把addType删了, 气死我了 debug了两个小时
+
+- rvcc.h
+  - `TokenKind::TY_ARRAY`
+  - `Type::Size, Type::ArrayLen`
+- type.c
+  `Type *arrayOf(Type *Base, int Len)` 构建一个数组类型的Type
+  赋值语句暂不支持对数组ident赋值
+  并且ND_ADDR做限制, 数组类型为 `pointerTo(Ty->Base);`, 而指针类型为`pointerTo(Ty);`
+- parse.c
+  // typeSuffix = "(" funcParams | "[" num "]" | ε
+  // funcParams = (param ("," param)*)? ")"
+  注意更改newAdd newSub中指针运算时 ptr+1, 不再固定为8, 而是`LHS->Ty->Base->Size`
+  ```c
+    // 构造数组类型, 传入 数组基类, 元素个数
+    Type *arrayOf(Type *Base, int Len) {
+      Type *Ty = calloc(1, sizeof(Type));
+      Ty->Kind = TY_ARRAY;
+      // 数组大小为所有元素大小之和
+      Ty->Size = Base->Size * Len; // Size为数组大小
+      Ty->Base = Base;
+      Ty->ArrayLen = Len;
+      return Ty;
+    }
+  ```
+- codegen.c
+  每个变量分配字节由8改为size
+
+
+`typeSuffix`函数是type的补充
+```c
+  int a;
+  int b[5];
+  int a();
+```
+碰到`int a`, 这时标识符`a`已经出现了, 标识符被判断为前面的`declspec "*"*`, 然后碰到`[` 或者 `(`需要改变标识符的类型

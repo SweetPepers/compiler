@@ -8,11 +8,11 @@ Obj *Locals;
 
 // 语法
 // program = functionDefinition*
-// functionDefinition = declspec declarator"{" compoundStmt*
+// functionDefinition = declspec declarator"{" compoundStmt
 // declspec = "int"
 // declarator = "*"* ident typeSuffix
-// typeSuffix = ("(" funcParams? ")")?
-// funcParams = param ("," param)*
+// typeSuffix = "(" funcParams | "[" num "]" | ε
+// funcParams = (param ("," param)*)? ")"
 // param = declspec declarator
 // compoundStmt = (declaration | stmt)* "}"
 // declaration =
@@ -38,6 +38,7 @@ static Type *declspec(Token **Rest, Token *Tok);
 static Type *declarator(Token **Rest, Token *Tok, Type *Ty);
 static Node *compoundStmt(Token **Rest, Token *Tok);
 static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty);
+static Type *funcParams(Token **Rest, Token *Tok, Type *Ty);
 static Node *declaration(Token **Rest, Token *Tok);
 static Node *stmt(Token **Rest, Token *Tok);
 static Node *exprStmt(Token **Rest, Token *Tok);
@@ -118,8 +119,15 @@ static char *getIdent(Token *Tok) {
   return strndup(Tok->Loc, Tok->Len);
 }
 
-// declspec = "int"
-// declarator specifier
+// 获取数字
+static int getNumber(Token *Tok) {
+  if (Tok->Kind != TK_NUM)
+    errorTok(Tok, "expected a number");
+  return Tok->Val;
+}
+
+// (declarator specifier)
+// declspec = "int" 
 static Type *declspec(Token **Rest, Token *Tok) {
   *Rest = skip(Tok, "int");
   return TyInt;
@@ -143,39 +151,47 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
   return Ty;
 }
 
-// typeSuffix = ("(" funcParams? ")")?
-// funcParams = param ("," param)*
-// param = declspec declarator
+// typeSuffix = "(" funcParams | "[" num "]" | ε
 static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty) {
-  // ("(" funcParams? ")")?
-  if (equal(Tok, "(")) {  //("(" funcParams? ")")
-    Tok = Tok->Next;
-
-    Type Head = {};
-    Type *Cur = &Head;
-    while(!equal(Tok, ")")){
-      // funcParams = param ("," param)*
-      // param = declspec declarator
-      if(Cur != &Head)
-        Tok = skip(Tok, ",");
-      Type *BaseTy = declspec(&Tok, Tok); // int
-      Type *DeclarTy = declarator(&Tok, Tok, BaseTy); // int ***
-
-      // 将类型复制到形参链表一份 
-      // DeclarTy出了这个函数就没了, 所有要copy
-      Cur->Next = copyType(DeclarTy);
-      Cur = Cur->Next;
-    }
-
-    // 封装一个函数节点
-    
-    Ty =  funcType(Ty);
-    // 传递形参
-    Ty->Params = Head.Next;
-    *Rest = Tok->Next;
-    return Ty;
+  // "(" funcParams
+  if (equal(Tok, "("))
+    return funcParams(Rest, Tok->Next, Ty);
+  // "[" num "]"
+  if (equal(Tok, "[")) {
+    int Sz = getNumber(Tok->Next);
+    *Rest = skip(Tok->Next->Next, "]");
+    return arrayOf(Ty, Sz);
   }
+
   *Rest = Tok;
+  return Ty;
+}
+
+// funcParams = (param ("," param)*)? ")"
+// param = declspec declarator
+static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
+  Type Head = {};
+  Type *Cur = &Head;
+
+  while (!equal(Tok, ")")) {
+    // funcParams = param ("," param)*
+    // param = declspec declarator
+    if (Cur != &Head)
+      Tok = skip(Tok, ",");
+    Type *BaseTy = declspec(&Tok, Tok); // int
+    Type *DeclarTy = declarator(&Tok, Tok, BaseTy); // int ***
+
+    // 将类型复制到形参链表一份
+    // DeclarTy出了这个函数就没了, 所有要copy
+    Cur->Next = copyType(DeclarTy);
+    Cur = Cur->Next;
+  }
+
+  // 封装一个函数节点
+  Ty = funcType(Ty);
+  // 传递形参
+  Ty->Params = Head.Next;
+  *Rest = Tok->Next;
   return Ty;
 }
 
@@ -319,7 +335,7 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
     }
     Cur = Cur->Next;
     // 构造完AST后，为节点添加类型信息    // TODO   为什么在这里给节点添加信息???  我放到下面了
-    // addType(Cur);
+    addType(Cur);  // TODO CRUX 就tm这一句 卧槽卧槽卧槽  
   }
 
   // Nd的Body存储了{}内解析的语句
@@ -450,8 +466,8 @@ static Node *newAdd(Node *LHS, Node *RHS, Token *Tok) {
   }
 
   // ptr + num ==> ptr + num * 8
-  // 指针加法，ptr+1，这里的1不是1个字节，而是1个元素的空间，所以需要 ×8 操作
-  RHS = newBinary(ND_MUL, RHS, newNum(8, Tok), Tok);
+  // 指针加法，ptr+1，这里的1不是1个字节，而是1个元素的空间，所以需要 ×Size 操作
+  RHS = newBinary(ND_MUL, RHS, newNum(LHS->Ty->Base->Size, Tok), Tok);
   return newBinary(ND_ADD, LHS, RHS, Tok);
 }
 
@@ -467,7 +483,7 @@ static Node *newSub(Node *LHS, Node *RHS, Token *Tok) {
 
   // ptr - num  ==>  ptr - 8*num
   if (LHS->Ty->Base && isInteger(RHS->Ty)) {
-    RHS = newBinary(ND_MUL, RHS, newNum(8, Tok), Tok);
+    RHS = newBinary(ND_MUL, RHS, newNum(LHS->Ty->Base->Size, Tok), Tok);
     addType(RHS);
     Node *Nd = newBinary(ND_SUB, LHS, RHS, Tok);
     // 节点类型为指针
@@ -479,7 +495,7 @@ static Node *newSub(Node *LHS, Node *RHS, Token *Tok) {
   if (LHS->Ty->Base && RHS->Ty->Base) {
     Node *Nd = newBinary(ND_SUB, LHS, RHS, Tok);
     Nd->Ty = TyInt;
-    return newBinary(ND_DIV, Nd, newNum(8, Tok), Tok);
+    return newBinary(ND_DIV, Nd, newNum(LHS->Ty->Base->Size, Tok), Tok);
   }
 
   errorTok(Tok, "invalid operands");
@@ -636,7 +652,7 @@ static void createParamLVars(Type *Param) {
   }
 }
 
-// functionDefinition = declspec declarator"{" compoundStmt*
+// functionDefinition = declspec declarator"{" compoundStmt
 static Function *function(Token **Rest, Token *Tok) {
   // declspec
   Type *Ty = declspec(&Tok, Tok);
@@ -658,6 +674,7 @@ static Function *function(Token **Rest, Token *Tok) {
   Tok = skip(Tok, "{");
   // 函数体存储语句的AST，Locals存储变量
   Fn->Body = compoundStmt(Rest, Tok);
+  // addType(Fn->Body);   // TODO CRUX 就tm这一句 卧槽卧槽卧槽   不知道什么时候删了 真特么啥币
   Fn->Locals = Locals;
   return Fn;
 }
