@@ -11,8 +11,10 @@ Obj *Locals;
 // functionDefinition = declspec declarator"{" compoundStmt*
 // declspec = "int"
 // declarator = "*"* ident typeSuffix
+// typeSuffix = ("(" funcParams? ")")?
+// funcParams = param ("," param)*
+// param = declspec declarator
 // compoundStmt = (declaration | stmt)* "}"
-// typeSuffix = ("(" ")")?
 // declaration =
 //         declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
 // stmt = "return" expr ";"
@@ -141,12 +143,37 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
   return Ty;
 }
 
-// typeSuffix = ("(" ")")?
+// typeSuffix = ("(" funcParams? ")")?
+// funcParams = param ("," param)*
+// param = declspec declarator
 static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty) {
-  // ("(" ")")?
-  if (equal(Tok, "(")) {
-    *Rest = skip(Tok->Next, ")");
-    return funcType(Ty);
+  // ("(" funcParams? ")")?
+  if (equal(Tok, "(")) {  //("(" funcParams? ")")
+    Tok = Tok->Next;
+
+    Type Head = {};
+    Type *Cur = &Head;
+    while(!equal(Tok, ")")){
+      // funcParams = param ("," param)*
+      // param = declspec declarator
+      if(Cur != &Head)
+        Tok = skip(Tok, ",");
+      Type *BaseTy = declspec(&Tok, Tok); // int
+      Type *DeclarTy = declarator(&Tok, Tok, BaseTy); // int ***
+
+      // 将类型复制到形参链表一份 
+      // DeclarTy出了这个函数就没了, 所有要copy
+      Cur->Next = copyType(DeclarTy);
+      Cur = Cur->Next;
+    }
+
+    // 封装一个函数节点
+    
+    Ty =  funcType(Ty);
+    // 传递形参
+    Ty->Params = Head.Next;
+    *Rest = Tok->Next;
+    return Ty;
   }
   *Rest = Tok;
   return Ty;
@@ -598,6 +625,17 @@ static Node *primary(Token **Rest, Token *Tok) {
   return NULL;
 }
 
+// 将形参添加到Locals
+static void createParamLVars(Type *Param) {
+  if (Param) {
+    // 递归到形参最底部
+    // 先将最底部的加入Locals中，之后的都逐个加入到顶部，保持顺序不变
+    createParamLVars(Param->Next);
+    // 添加到Locals中
+    newLVar(getIdent(Param->Name), Param);
+  }
+}
+
 // functionDefinition = declspec declarator"{" compoundStmt*
 static Function *function(Token **Rest, Token *Tok) {
   // declspec
@@ -611,8 +649,11 @@ static Function *function(Token **Rest, Token *Tok) {
   // 从解析完成的Ty中读取ident  
   // 这里没有node, 所以无法从node中找到name
   Function *Fn = calloc(1, sizeof(Function));
+  // 函数名
   Fn->Name = getIdent(Ty->Name);
-  // Fn->Name = getIdent(Tok);
+  // 函数参数
+  createParamLVars(Ty->Params);
+  Fn->Params = Locals;
 
   Tok = skip(Tok, "{");
   // 函数体存储语句的AST，Locals存储变量

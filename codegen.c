@@ -311,6 +311,11 @@ void genFun(Function *Fn){
   // 偏移量为实际变量所用的栈大小
   printf("  addi sp, sp, -%d\n", Fn->StackSize);
 
+  int I = 0;
+  for (Obj *Var = Fn->Params; Var; Var = Var->Next) {
+    printf("  # 将%s寄存器的值存入%s的栈地址\n", ArgReg[I], Var->Name);
+    printf("  sd %s, %d(fp)\n", ArgReg[I++], Var->Offset);
+  }
   // 生成语句链表的代码
   genStmt(Fn->Body);
   assert(Depth == 0);

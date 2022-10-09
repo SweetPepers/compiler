@@ -797,3 +797,25 @@ int ** main() myfunc(){
     }
   }
   ```
+
+### 26 支持最多6个参数的函数定义
+增加参数的函数调用,本质上就是解析完括号中的参数, 然后将形参加入本地变量, 代码生成的时候, 将a0-a5寄存器的值存入sp中的参数地址中
+
+- rvcc.h
+  - `Type`::Type *Params;   // 形参  Type::Type *Next;     // 下一类型
+  - `Function`::Obj *Params; // 形参
+- type.c
+  addtype时, 为每个形参也addType
+- parse.c
+  新语法
+  // typeSuffix = ("(" funcParams? ")")?
+  // funcParams = param ("," param)*
+  // param = declspec declarator
+  typeSuffix: 算是Type的补充, 如果有括号就不是变量类型, 就变为函数类型
+
+  - function
+  `Obj *newLVar(char *Name, Type *Ty)` 往参数列表中添加参数需要知道参数的name和type
+  function函数中需要先用`createParamLVars(Ty->Params);`给locals添加上形参, 添加中倒着添加, 因为codegen是倒着出栈的
+- codegen.c
+  生成函数的时候将寄存器中的值load到参数地址中(`%d(fp)\n", ArgReg[I++]`)
+
