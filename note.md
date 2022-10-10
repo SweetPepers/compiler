@@ -895,3 +895,9 @@ if (equal(Tok, "[")) {
     return arrayOf(Ty, Sz);
   }
 ```
+
+### 29 支持[]操作符
+// unary = ("+" | "-" | "*" | "&") unary | postfix
+// postfix = primary ("[" expr "]")*
+
+x[y] 等价于 *(x+y)

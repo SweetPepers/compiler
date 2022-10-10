@@ -30,7 +30,8 @@ Obj *Locals;
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 // add = mul ("+" mul | "-" mul)*
 // mul = unary ("*" unary | "/" unary)*
-// unary = ("+" | "-" | "*" | "&") unary | primary
+// unary = ("+" | "-" | "*" | "&") unary | postfix
+// postfix = primary ("[" expr "]")*
 // primary = "(" expr ")" | ident func-args? | num
 
 // funcall = ident "(" (assign ("," assign)*)? ")"
@@ -49,8 +50,9 @@ static Node *relational(Token **Rest, Token *Tok);
 static Node *add(Token **Rest, Token *Tok);
 static Node *mul(Token **Rest, Token *Tok);
 static Node *unary(Token **Rest, Token *Tok);
-static Node *funCall(Token **Rest, Token *Tok);
+static Node *postfix(Token **Rest, Token *Tok);
 static Node *primary(Token **Rest, Token *Tok);
+static Node *funCall(Token **Rest, Token *Tok);
 
 
 // 通过名称，查找一个本地变量
@@ -557,7 +559,7 @@ static Node *mul(Token **Rest, Token *Tok) {
 }
 
 // 解析一元运算
-// unary = ("+" | "-" | "*" | "&") unary | primary
+// unary = ("+" | "-" | "*" | "&") unary | postfix
 static Node *unary(Token **Rest, Token *Tok) {
   // "+" unary
   if (equal(Tok, "+"))
@@ -574,33 +576,25 @@ static Node *unary(Token **Rest, Token *Tok) {
   // "-" unary
   if (equal(Tok, "&"))
     return newUnary(ND_ADDR, unary(Rest, Tok->Next), Tok);
-  // primary
-  return primary(Rest, Tok);
+
+  // postfix
+  return postfix(Rest, Tok);
 }
 
-// 解析函数调用
-// funcall = ident "(" (assign ("," assign)*)? ")"
-static Node *funCall(Token **Rest, Token *Tok) {
-  Token *Start = Tok;
-  Tok = Tok->Next->Next;  // ident "(" 
+// postfix = primary ("[" expr "]")*
+static Node *postfix(Token **Rest, Token *Tok) {
+  // primary
+  Node *Nd = primary(&Tok, Tok);  //primary(Rest, Tok);  rest之后在末尾会使用
 
-  Node Head = {};
-  Node *Cur = &Head;
-
-  while (!equal(Tok, ")")) {
-    if (Cur != &Head)
-      Tok = skip(Tok, ",");
-    // assign
-    Cur->Next = assign(&Tok, Tok);
-    Cur = Cur->Next;
+  // ("[" expr "]")*
+  while (equal(Tok, "[")) {
+    // x[y] 等价于 *(x+y)
+    Token *Start = Tok;
+    Node *Idx = expr(&Tok, Tok->Next);
+    Tok = skip(Tok, "]");
+    Nd = newUnary(ND_DEREF, newAdd(Nd, Idx, Start), Start);
   }
-
-  *Rest = skip(Tok, ")");
-
-  Node *Nd = newNode(ND_FUNCALL, Start);
-  // ident
-  Nd->FuncName = strndup(Start->Loc, Start->Len);
-  Nd->Args = Head.Next;
+  *Rest = Tok;
   return Nd;
 }
 
@@ -641,6 +635,32 @@ static Node *primary(Token **Rest, Token *Tok) {
 
   errorTok(Tok, "expected an expression");
   return NULL;
+}
+
+// 解析函数调用
+// funcall = ident "(" (assign ("," assign)*)? ")"
+static Node *funCall(Token **Rest, Token *Tok) {
+  Token *Start = Tok;
+  Tok = Tok->Next->Next;  // ident "(" 
+
+  Node Head = {};
+  Node *Cur = &Head;
+
+  while (!equal(Tok, ")")) {
+    if (Cur != &Head)
+      Tok = skip(Tok, ",");
+    // assign
+    Cur->Next = assign(&Tok, Tok);
+    Cur = Cur->Next;
+  }
+
+  *Rest = skip(Tok, ")");
+
+  Node *Nd = newNode(ND_FUNCALL, Start);
+  // ident
+  Nd->FuncName = strndup(Start->Loc, Start->Len);
+  Nd->Args = Head.Next;
+  return Nd;
 }
 
 // 将形参添加到Locals
