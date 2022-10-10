@@ -16,7 +16,7 @@
 
 typedef struct Type Type;
 typedef struct Token Token;
-
+typedef struct Node Node;
 
 //
 // 终结符分析，词法分析
@@ -26,6 +26,7 @@ typedef enum {
   TK_IDENT,   // 标记符, 可以表示变量名 函数名等
   TK_PUNCT,   // 操作符如： + - ; <= == != 
   TK_KEYWORD, // 关键字
+  TK_STR,     // 字符串字面量
   TK_NUM,     // 数字
   TK_EOF,     // 文件终止符，即文件的最后
 } TokenKind;
@@ -39,6 +40,8 @@ struct Token {
   int Val;        // 值
   char *Loc;      // 在解析的字符串内的位置
   int Len;        // 长度
+  Type *Ty;       // TK_STR使用
+  char *Str;      // 字符串字面量, 包括'\0';
 };
 
 // 去除了static用以在多个文件间访问
@@ -58,8 +61,6 @@ Token *tokenize(char *Input);
 // 生成AST（抽象语法树），语法解析
 //
 
-typedef struct Node Node;
-
 // 变量 或 函数
 typedef struct Obj Obj;
 struct Obj {
@@ -73,6 +74,9 @@ struct Obj {
 
   // 函数或全局变量
   bool IsFunction;
+
+  // 全局变量
+  char *InitData;
 
   // 函数
   Obj *Params;     // 形参
@@ -100,7 +104,7 @@ typedef enum {
   ND_IF,        // if
   ND_FOR,       // "for" 或 "while" 循环
   ND_BLOCK,     // {...}, 代码块
-  ND_FUNCALL,
+  ND_FUNCALL,   // 函数调用
   ND_EXPR_STMT, // 表达式语句
   ND_VAR,       // 变量
   ND_NUM,       // 整形

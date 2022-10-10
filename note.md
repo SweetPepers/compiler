@@ -1045,3 +1045,65 @@ Type *TyChar = &(Type){TY_CHAR, 1};
 // declspec = "char" | "int"
 后面代码生成时要判断一下 `ty->size`, 选择 `lb / ld   sb/sd`
 
+### 34 字符串字面量 
+'\0'在哪里存储?
+
+- rvcc.h
+```c
+TokenKind::TK_STR;  // tokenize碰到'"' 检测
+Type* Token::Ty;    // TK_STR使用  parse.c::newStringLiteral()使用
+char *Obj::InitData;  // 字符串初始化值 存在.data中
+```
+
+- tokenize.c
+  "abc", start = "(the left one), endP = " (the right one)
+  `Tok->Ty = arrayOf(TyChar, P - Start);` 开辟n+1个空间,最后一个存储'\0'
+  `Tok->Str = strndup(Start + 1, P - Start - 1);` 复制abc
+
+- parse.c
+  创建全局变量需要
+  `Obj *newGVar(char *Name, Type *Ty)`
+  然而字符串是没名字的, 所以需要建立匿名唯一名称
+  在`newStringLiteral()`中, `tok->str`会被复制到新创建的匿名全局变量的`InitData`中
+  关于 `Tok->Ty`, 因为对ty的判断提前到了tokenize中, 所有后续不用再弄了
+  ```c
+    if (Tok->Kind == TK_STR){
+      Obj *Var = newStringLiteral(Tok->Str, Tok->Ty);
+      *Rest = Tok->Next;
+      return newVarNode(Var, Tok);
+    }
+  ```
+  TK_STR被定义为VAR, 但var中的某些字段不同(`InitData`以及`Ty`(`Ty`为n+1长度的数组))
+- codegen.c
+  之前的全局变量只声明, 并没有初始化, 但str类型有初始化, 需要判断(`Var->InitData != null`)  
+  生成代码如下格式  
+  源代码
+  ```c
+  int a[10]; 
+  int main() { return sizeof("abc"); }
+  ```
+  ```armasm
+      # 数据段标签
+      .data
+    .L..0:
+      # 字符串字面量
+      .byte 97	# a
+      .byte 98	# b
+      .byte 99	# c
+      .byte 0
+      # 数据段标签
+      .data
+      # 全局段a
+      .globl a
+    a:
+      # 全局变量零填充80位
+      .zero 80
+
+      # 定义全局main段
+      .globl main
+      .text
+    # =====main段开始===============
+    # main段标签
+    main:
+    ...
+  ```
