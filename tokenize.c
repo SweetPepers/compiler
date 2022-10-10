@@ -145,6 +145,18 @@ static bool isKeyword(Token *Tok) {
   return false;
 }
 
+// 返回一位十六进制转十进制
+// hexDigit = [0-9a-fA-F]
+// 16: 0 1 2 3 4 5 6 7 8 9  A  B  C  D  E  F
+// 10: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+static int fromHex(char C) {
+  if ('0' <= C && C <= '9')
+    return C - '0';
+  if ('a' <= C && C <= 'f')
+    return C - 'a' + 10;
+  return C - 'A' + 10;
+}
+
 // 读取转义字符
 static int readEscapedChar(char **NewPos, char *P) {
   if ('0' <= *P && *P <= '7') {
@@ -156,6 +168,21 @@ static int readEscapedChar(char **NewPos, char *P) {
       if ('0' <= *P && *P <= '7')
         C = (C << 3) + (*P++ - '0');
     }
+    *NewPos = P;
+    return C;
+  }
+  
+  if (*P == 'x'){
+    P++;
+    // 判断是否为十六进制数字
+    if (!isxdigit(*P))
+      errorAt(P, "invalid hex escape sequence");
+
+    int C = 0;
+    // 读取一位或多位十六进制数字
+    // \xWXYZ = ((W*16+X)*16+Y)*16+Z
+    for (; isxdigit(*P); P++)
+      C = (C << 4) + fromHex(*P);
     *NewPos = P;
     return C;
   }
