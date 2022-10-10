@@ -882,3 +882,16 @@ Type->Base->Size 和 Base->size区别:
   int a();
 ```
 碰到`int a`, 这时标识符`a`已经出现了, 标识符被判断为前面的`declspec "*"*`, 然后碰到`[` 或者 `(`需要改变标识符的类型
+
+### 28 支持多维数组
+
+// typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
+```c
+if (equal(Tok, "[")) {
+    int Sz = getNumber(Tok->Next);
+    Tok = skip(Tok->Next->Next, "]");
+    Ty = typeSuffix(Rest, Tok, Ty); 
+    // 最终会递归到 ε 然后设置Rest  *Rest = Tok, 如果在这里设置 会把原来的指向末尾的Rest 重新设置为 "["
+    return arrayOf(Ty, Sz);
+  }
+```
