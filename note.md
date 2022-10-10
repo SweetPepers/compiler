@@ -1154,3 +1154,28 @@ char *format(char *Fmt, ...) {
 
 ### 38 支持十六进制转义字符
 16进制可以是多位
+
+### 39 [GNU]语句表达式
+`({ int x=3; x; })` 这个就叫语句表达式
+
+NodeKind::ND_STMT_EXPR
+// 解析括号、数字、变量
+// primary = "(" "{" stmt+ "}" ")"
+//         | "(" expr ")"
+//         | "sizeof" unary
+//         | ident funcArgs?
+//         | str
+//         | num
+
+按照 "(" "{" compoundStmt ")"解析, 结果存入Node->Body中
+
+注意addType中// 节点类型为 最后的表达式语句的类型
+```c
+Node *Stmt = Nd->Body;
+while (Stmt->Next)
+  Stmt = Stmt->Next;
+if (Stmt->Kind == ND_EXPR_STMT) {
+  Nd->Ty = Stmt->LHS->Ty;
+  return;
+}
+```

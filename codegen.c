@@ -25,6 +25,8 @@ static char *ArgReg[] = {"a0", "a1", "a2", "a3", "a4", "a5"};
 // 当前的函数
 static Obj *CurrentFn;
 
+static void genStmt(Node *Nd);
+
 // 压栈，将结果临时压入栈中备用
 // sp为栈指针，栈反向向下增长，64位下，8个字节为一个单位，所以sp-8
 // 当前栈指针的地址就是sp，将a0的值压入栈
@@ -133,6 +135,11 @@ static void genExpr(Node *Nd) {
   // 取地址
   case ND_ADDR: // &a / & *a
     genAddr(Nd->LHS);
+    return;
+  // 语句表达式
+  case ND_STMT_EXPR:
+    for (Node *N = Nd->Body; N; N = N->Next)
+      genStmt(N);
     return;
   // 函数调用
   case ND_FUNCALL: {

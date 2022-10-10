@@ -111,6 +111,7 @@ typedef enum {
   ND_BLOCK,     // {...}, 代码块
   ND_FUNCALL,   // 函数调用
   ND_EXPR_STMT, // 表达式语句
+  ND_STMT_EXPR, // 语句表达式
   ND_VAR,       // 变量
   ND_NUM,       // 整形
 } NodeKind;
@@ -136,7 +137,7 @@ struct Node {
   char *FuncName; // 函数名
   Node *Args; // 函数参数
 
-  Node *Body;    // 代码块 
+  Node *Body;    // 代码块 或语句表达式 
   Obj *Var;      // 存储ND_VAR种类的变量
   int Val;       // 存储ND_NUM种类的值
 };
