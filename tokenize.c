@@ -146,7 +146,22 @@ static bool isKeyword(Token *Tok) {
 }
 
 // 读取转义字符
-static int readEscapedChar(char *P) {
+static int readEscapedChar(char **NewPos, char *P) {
+  if ('0' <= *P && *P <= '7') {
+    // 读取一个八进制数字，不能长于三位
+    // \abc = (a*8+b)*8+c
+    int C = *P++ - '0';
+    if ('0' <= *P && *P <= '7') {
+      C = (C << 3) + (*P++ - '0');
+      if ('0' <= *P && *P <= '7')
+        C = (C << 3) + (*P++ - '0');
+    }
+    *NewPos = P;
+    return C;
+  }
+
+  *NewPos = P + 1;
+
   switch (*P) {
   case 'a': // 响铃（警报）
     return '\a';
@@ -195,8 +210,7 @@ static Token *readStringLiteral(char *Start) {
   // 将读取后的结果写入Buf
   for (char *P = Start + 1; P < End;) {
     if (*P == '\\') {  // "\t" 返回 '\t'
-      Buf[Len++] = readEscapedChar(P + 1);
-      P += 2;
+      Buf[Len++] = readEscapedChar(&P, P + 1);
     } else {
       Buf[Len++] = *P++;
     }
