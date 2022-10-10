@@ -974,3 +974,63 @@ eposide::本地变量存哪去了???
 - codegen.c
   注意输入Prog为Globals,(目前Globals中存储的全部为变量, 后面会加入全局变量), 要判断一下 `bool IsFunction`
 
+### 32 支持全局变量声明
+不支持初始化
+- parse.c
+  // program = (functionDefinition | global-variable)*
+  对每个需要判断是函数类型还是全局变量类型`isFunction()`
+  ```c
+    // 区分 函数还是全局变量
+    static bool isFunction(Token *Tok) {
+      if (equal(Tok, ";"))  // int;
+        return false;
+
+      // CRUX 虚设变量，用于调用declarator, 判断下后面的类型
+      Type Dummy = {};
+      Type *Ty = declarator(&Tok, Tok, &Dummy);
+      return Ty->Kind == TY_FUNC;
+    }
+  ```
+  global-variable = declarator?("," declarator)* ";"
+  `while(!consume(&Tok, Tok, ";"))` 用 `newGVar`加入到Globals中
+- codegen.c
+  全局变量存放在`.data`中, `printf("  la a0, %s\n", Nd->Var->Name);  // 全局变量存放在符号表中, data段`
+  用下述函数生成.data
+  ```c
+  // .data 全局变量
+    static void emitData(Obj *Prog) {
+      for (Obj *Var = Prog; Var; Var = Var->Next) {
+        if (Var->IsFunction)
+          continue;
+
+        printf("  # 数据段标签\n");
+        printf("  .data\n");
+        printf("  .globl %s\n", Var->Name);
+        printf("  # 全局变量%s\n", Var->Name);
+        printf("%s:\n", Var->Name);
+        printf("  # 零填充%d位\n", Var->Ty->Size);
+        printf("  .zero %d\n", Var->Ty->Size);
+      }
+    }
+  ```
+  效果如下
+  ```armasm
+      # 数据段标签
+      .data
+      .globl x
+      # 全局变量x
+    x:
+      # 零填充32位
+      .zero 32
+
+      # 定义全局main段
+      .globl main
+      .text
+    # =====main段开始===============
+    # main段标签
+    main:
+      # 将ra寄存器压栈,保存ra的值
+      addi sp, sp, -16
+      sd ra, 8(sp)
+      ...
+  ```

@@ -10,6 +10,7 @@ Obj *Globals; // 全局变量
 // 语法
 // program = (functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator"{" compoundStmt
+// global-variable = declarator?("," declarator)* ";"
 // declspec = "int"
 // declarator = "*"* ident typeSuffix
 // typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
@@ -63,6 +64,13 @@ static Obj *findVar(Token *Tok) {
     // 判断变量名是否和终结符名长度一致，然后逐字比较。   
     if (strlen(Var->Name) == Tok->Len &&  // 判断长度 a abc
         strncmp(Tok->Loc, Var->Name, Tok->Len)==0)
+      return Var;
+
+  // 查找Globals变量中是否存在同名变量
+  for (Obj *Var = Globals; Var; Var = Var->Next)
+    // 判断变量名是否和终结符名长度一致，然后逐字比较。
+    if (strlen(Var->Name) == Tok->Len &&
+        !strncmp(Tok->Loc, Var->Name, Tok->Len))
       return Var;
   return NULL;
 }
@@ -716,6 +724,34 @@ static Token *function(Token *Tok, Type *BaseTy) {
   Fn->Locals = Locals;
   return Tok;
 }
+// int
+// a,b[10],*c;
+// 构造全局变量
+// global-variable = declarator?("," declarator)* ";"
+static Token *globalVariable(Token *Tok, Type *Basety) {
+  bool First = true;
+
+  while (!consume(&Tok, Tok, ";")) {
+    if (!First)
+      Tok = skip(Tok, ",");
+    First = false;
+
+    Type *Ty = declarator(&Tok, Tok, Basety);
+    newGVar(getIdent(Ty->Name), Ty);
+  }
+  return Tok;
+}
+
+// 区分 函数还是全局变量
+static bool isFunction(Token *Tok) {
+  if (equal(Tok, ";"))  // int;
+    return false;
+
+  // 虚设变量，用于调用declarator, 判断下后面的类型
+  Type Dummy = {};
+  Type *Ty = declarator(&Tok, Tok, &Dummy);
+  return Ty->Kind == TY_FUNC;
+}
 
 // 语法解析入口函数
 // program = (functionDefinition | global-variable)*
@@ -723,7 +759,12 @@ Obj *parse(Token *Tok) {
   Globals = NULL;
   while (Tok->Kind != TK_EOF) {
     Type *BaseTy = declspec(&Tok, Tok);
-    Tok = function(Tok, BaseTy);
+    // 函数
+    if(isFunction(Tok)){
+      Tok = function(Tok, BaseTy);
+    }else{
+      Tok = globalVariable(Tok, BaseTy);
+    }
   }
   return Globals;
 }
