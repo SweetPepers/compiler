@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 //
 // 共用头文件，定义了多个文件间共同使用的函数和数据
@@ -60,7 +61,7 @@ Token *skip(Token *Tok, char *Str);
 bool consume(Token **Rest, Token *Tok, char *Str);
 
 // 词法分析
-Token *tokenize(char *Input);
+Token *tokenizeFile(char *Path);
 
 //
 // 生成AST（抽象语法树），语法解析

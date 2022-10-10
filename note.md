@@ -1179,3 +1179,130 @@ if (Stmt->Kind == ND_EXPR_STMT) {
   return;
 }
 ```
+
+
+### 40从文件中读取代码,改进报错信息
+核心两个函数**CRUX**, 好好学  太秀了
+从文件读取代码
+```c
+
+// 返回指定文件的内容  把文件转为字符串
+  static char *readFile(char *Path) {
+    FILE *FP;
+
+    if (strcmp(Path, "-") == 0) {
+      // 如果文件名是"-"，那么就从输入中读取
+      FP = stdin;
+    } else {
+      FP = fopen(Path, "r");
+      if (!FP)
+        // errno为系统最后一次的错误代码
+        // strerror以字符串的形式输出错误代码
+        error("cannot open %s: %s", Path, strerror(errno));
+    }
+
+    // 要返回的字符串
+    char *Buf;
+    size_t BufLen;
+    FILE *Out = open_memstream(&Buf, &BufLen);
+
+    // 读取整个文件
+    while(true) {
+      char Buf2[4096];
+      // fread从文件流中读取数据到数组中
+      // 数组指针Buf2，数组元素大小1，数组元素个数4096，文件流指针
+      int N = fread(Buf2, 1, sizeof(Buf2), FP);
+      if (N == 0)
+        break;
+      // 数组指针Buf2，数组元素大小1，实际元素个数N，文件流指针
+      fwrite(Buf2, 1, N, Out);
+    }
+
+    // 对文件完成了读取
+    if (FP != stdin)
+      fclose(FP);
+
+    // 刷新流的输出缓冲区，确保内容都被输出到流中
+    fflush(Out);
+    // 确保最后一行以'\n'结尾
+    if (BufLen == 0 || Buf[BufLen - 1] != '\n')
+      // 将字符输出到流中
+      fputc('\n', Out);
+    fputc('\0', Out);
+    fclose(Out);
+    return Buf;
+  }
+```
+改进报错信息
+```c
+  // 输出例如下面的错误，并退出
+  // foo.c:10: x = y + 1;
+  //               ^ <错误信息>
+  static void verrorAt(char *Loc, char *Fmt, va_list VA) {
+    // 查找包含loc的行
+    char *Line = Loc;
+    // Line递减到当前行的最开始的位置
+    // Line<CurrentInput, 判断是否读取到文件最开始的位置
+    // Line[-1] != '\n'，Line字符串前一个字符是否为换行符（上一行末尾）
+    while (CurrentInput < Line && Line[-1] != '\n')
+      Line--;
+
+    // End递增到行尾的换行符
+    char *End = Loc;
+    while (*End != '\n')
+      End++;
+
+    // 获取行号, 一个字符一个字符的遍历, 数'\n'个数
+    int LineNo = 1;
+    for (char *P = CurrentInput; P < Line; P++)
+      // 遇到换行符则行号+1
+      if (*P == '\n')
+        LineNo++;
+
+    // 输出 文件名:错误行
+    // Indent记录输出了多少个字符
+    int Indent = fprintf(stderr, "%s:%d: ", CurrentFilename, LineNo); // foo.c:10
+    // 输出Line的行内所有字符（不含换行符）
+    fprintf(stderr, "%.*s\n", (int)(End - Line), Line); // 从Line开始 打印出 int(End-Line)个字符
+
+    // 计算错误信息位置，在当前行内的偏移量+前面输出了多少个字符
+    int Pos = Loc - Line + Indent;
+
+    // 将字符串补齐为Pos位，因为是空字符串，所以填充Pos个空格。
+    fprintf(stderr, "%*s", Pos, "");  // Pos个空格。
+    fprintf(stderr, "^ ");
+    vfprintf(stderr, Fmt, VA);
+    fprintf(stderr, "\n");
+    va_end(VA);
+  }
+```
+**CRUX**  
+[格式化输出字符串](https://www.cnblogs.com/dapaitou2006/p/6428122.html)
+
+对于m.n的格式还可以用如下方法表示（例）  
+char ch[20];  
+printf("%\*.\*s/n",m,n,ch);  
+前边的*定义的是总的宽度，后边的定义的是输出的个数。分别对应外面的参数m和n 。我想这种方法的好处是可以在语句之外对参数m和n赋值，从而控制输出格式。
+
+| 格式代码 | A  |ABC | ABCDEFGH |
+| -- | --- | -- | -- |
+|%s  | A   |ABC | ABCDEFGH |
+|%5s | ####A   |##ABC | ABCDEFGH |
+|%.5s  | A   |ABC | ABCDE |
+|%5.5s  | ####A   |##ABC | ABCDE |
+|%-5s  | A####   |ABC## | ABCDEFGH |
+
+`%m.ns` : 宽度为m(不够了补齐, 默认右对齐, `-`左对齐), 长度为n
+`%*.*s` : 自己指定m,n:`printf("%\*.\*s/n",m,n,ch);`
+- 注意readfile中这么写的
+```c
+if (strcmp(Path, "-") == 0) {
+      // 如果文件名是"-"，那么就从输入中读取
+      FP = stdin;
+```
+因为sh中
+```sh
+echo "$input" | ./rvcc - > tmp.s || exit
+```
+管道的数据从stdin中进来, argv[1] = "-"
+**CRUX****管道从stdin来**
