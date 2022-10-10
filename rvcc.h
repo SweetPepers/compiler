@@ -19,6 +19,11 @@ typedef struct Token Token;
 typedef struct Node Node;
 
 //
+// 字符串
+//
+
+char *format(char *Fmt, ...);
+//
 // 终结符分析，词法分析
 // tokenize.c
 // 为每个终结符都设置种类来表示
