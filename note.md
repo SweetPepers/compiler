@@ -1117,8 +1117,9 @@ char *format(char *Fmt, ...) {
   char *Buf;
   size_t BufLen;
   // 将字符串对应的内存作为I/O流
-  FILE *Out = open_memstream(&Buf, &BufLen);
-
+  FILE *Out = open_memstream(&Buf, &BufLen);  //函数可以实现在一段内存上进行IO操作
+  // open_memstream() 函数可以为用户动态申请和扩展内存，并将内存大小通过参数返回
+  // 另一个函数是fmemopen(), 但fmemopen需要调用者提供一段已经分配好的内存
   va_list VA;
   va_start(VA, Fmt);
   // 向流中写入数据
@@ -1130,3 +1131,16 @@ char *format(char *Fmt, ...) {
 }
 ```
 
+### 36 支持多个转义字符
+主要是 对转移字符 '\\'的处理, 要把"\t"类似的字符串转换为'\t'
+对应如下
+|   转义字符   |  意思   |
+| --- | ---|
+|  \a   |  响铃(报警)  |
+|  \b   |  退格  |
+|  \t   |  水平制表符  |
+|  \n   |  换行  |
+|  \v   |  垂直制表符  |
+|  \f   |  换页  |
+|  \r   |  回车  |
+|  \e   |  转义符(GNU C拓展)  |
