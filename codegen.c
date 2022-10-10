@@ -76,14 +76,22 @@ static void load(Type *Ty) {
     return;
 
   printf("  # 读取a0中存放的地址, 得到的值存入a0\n");
-  printf("  ld a0, 0(a0)\n");
+  if(Ty->Size == 1){
+    printf("  lb a0, 0(a0)\n");
+  }else{
+    printf("  ld a0, 0(a0)\n");
+  }
 }
 
 // 将a0存入栈顶值(为一个地址)
-static void store(void) {
+static void store(Type *Ty) {
   pop("a1");
   printf("  # 将a0的值, 写入到a1中存放的地址\n");
-  printf("  sd a0, 0(a1)\n");
+  if (Ty->Size == 1){
+    printf("  sb a0, 0(a1)\n");
+  }else{
+    printf("  sd a0, 0(a1)\n");
+  }
 };
 
 // 生成表达式
@@ -115,7 +123,7 @@ static void genExpr(Node *Nd) {
     push();
     // 右部是右值，为表达式的值
     genExpr(Nd->RHS);
-    store();
+    store(Nd->Ty);
     return;
   // 解引用 *   *addr  load addr to a0   then load 0(a0) to a0
   case ND_DEREF:
@@ -337,7 +345,11 @@ void genFun(Obj *Fn){
   int I = 0;
   for (Obj *Var = Fn->Params; Var; Var = Var->Next) {
     printf("  # 将%s寄存器的值存入%s的栈地址\n", ArgReg[I], Var->Name);
-    printf("  sd %s, %d(fp)\n", ArgReg[I++], Var->Offset);
+    if(Var->Ty->Size == 1){
+      printf("  sb %s, %d(fp)\n", ArgReg[I++], Var->Offset);
+    }else{
+      printf("  sd %s, %d(fp)\n", ArgReg[I++], Var->Offset);
+    }
   }
   // 生成语句链表的代码
   genStmt(Fn->Body);

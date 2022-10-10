@@ -1034,3 +1034,14 @@ eposide::本地变量存哪去了???
       sd ra, 8(sp)
       ...
   ```
+
+
+### 33 char类型
+
+`TypeKind::TY_CHAR`
+增加 TyChar变量
+Type *TyChar = &(Type){TY_CHAR, 1};
+
+// declspec = "char" | "int"
+后面代码生成时要判断一下 `ty->size`, 选择 `lb / ld   sb/sd`
+
