@@ -32,7 +32,7 @@ Obj *Locals;
 // mul = unary ("*" unary | "/" unary)*
 // unary = ("+" | "-" | "*" | "&") unary | postfix
 // postfix = primary ("[" expr "]")*
-// primary = "(" expr ")" | ident func-args? | num
+// primary = "(" expr ")" | "sizeof" unary | ident func-args? | num 
 
 // funcall = ident "(" (assign ("," assign)*)? ")"
 static Type *declspec(Token **Rest, Token *Tok);
@@ -599,7 +599,7 @@ static Node *postfix(Token **Rest, Token *Tok) {
 }
 
 // 解析括号、数字、变量
-// primary = "(" expr ")" | ident func-args? | num
+// primary = "(" expr ")" | "sizeof" unary | ident funcArgs? | num
 static Node *primary(Token **Rest, Token *Tok) {
   // "(" expr ")"
   if (equal(Tok, "(")) {
@@ -630,7 +630,13 @@ static Node *primary(Token **Rest, Token *Tok) {
     }
     *Rest = Tok->Next;
     return newVarNode(Var, Tok);
-    
+  }
+
+  // "sizeof" unary
+  if (equal(Tok, "sizeof")){
+    Node *Nd = unary(Rest, Tok->Next); // 跳过sizeof, 防止变函数 sizeof函数
+    addType(Nd);
+    return newNum(Nd->Ty->Size, Tok);
   }
 
   errorTok(Tok, "expected an expression");

@@ -901,3 +901,17 @@ if (equal(Tok, "[")) {
 // postfix = primary ("[" expr "]")*
 
 x[y] 等价于 *(x+y)
+
+### 30 支持sizeof
+// primary = "(" expr ")" | "sizeof" unary | ident funcArgs? | num
+```c
+  if (equal(Tok, "sizeof")){
+    Node *Nd = unary(Rest, Tok);
+    addType(Nd);
+    return newNum(Nd->Ty->Size, Tok);
+  }
+
+```
+  - CRUX:注意这个要放到`ident funcArgs?`前面, 否则, 会将sizeof()判定为函数, 因为`ident funcArgs?`除了当前tok还会判断下一个tok,
+  - 明明有`TK_KEYWORD`为什么`sizeof`仍然被判定为`TK_IDENT`?
+    破案了 当时`convertKeywords`条件被我改了, 原版是 `T->Kind != TK_EOF`, 被我改成了`T->Kind == TK_IDENT`, 导致中间出现个别的类型的tok就停止了 智障啊 
