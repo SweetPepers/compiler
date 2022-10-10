@@ -4,10 +4,11 @@
 
 
 // 在解析时，全部的变量实例都被累加到这个列表里。
-Obj *Locals;
+Obj *Locals;  // 局部变量
+Obj *Globals; // 全局变量
 
 // 语法
-// program = functionDefinition*
+// program = (functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator"{" compoundStmt
 // declspec = "int"
 // declarator = "*"* ident typeSuffix
@@ -103,14 +104,29 @@ static Node *newVarNode(Obj *Var, Token *Tok) {
   return Nd;
 }
 
-// 在链表中新增一个变量
-static Obj *newLVar(char *Name, Type *Ty) {
+// 新建变量
+static Obj *newVar(char *Name, Type *Ty) {
   Obj *Var = calloc(1, sizeof(Obj));
   Var->Name = Name;
   Var->Ty = Ty;
+  return Var;
+}
+
+// 在链表中新增一个局部变量
+static Obj *newLVar(char *Name, Type *Ty) {
+  Obj *Var = newVar(Name, Ty);
+  Var->IsLocal = true;
   // 将变量插入头部
   Var->Next = Locals;
   Locals = Var;
+  return Var;
+}
+
+// 在链表中新增一个全局变量
+static Obj *newGVar(char *Name, Type *Ty) {
+  Obj *Var = newVar(Name, Ty);
+  Var->Next = Globals;
+  Globals = Var;
   return Var;
 }
 
@@ -681,41 +697,33 @@ static void createParamLVars(Type *Param) {
 }
 
 // functionDefinition = declspec declarator"{" compoundStmt
-static Function *function(Token **Rest, Token *Tok) {
-  // declspec
-  Type *Ty = declspec(&Tok, Tok);
-  // declarator? ident "(" ")"
-  Ty = declarator(&Tok, Tok, Ty);
+static Token *function(Token *Tok, Type *BaseTy) {
+  Type *Ty = declarator(&Tok, Tok, BaseTy);
 
-  // 清空全局变量Locals
+  Obj *Fn = newGVar(getIdent(Ty->Name), Ty);  // 函数为全局变量
+  Fn->IsFunction = true;
+
+  // 清空本地变量Locals
   Locals = NULL;
-
-  // 从解析完成的Ty中读取ident  
-  // 这里没有node, 所以无法从node中找到name
-  Function *Fn = calloc(1, sizeof(Function));
-  // 函数名
-  Fn->Name = getIdent(Ty->Name);
   // 函数参数
   createParamLVars(Ty->Params);
   Fn->Params = Locals;
 
   Tok = skip(Tok, "{");
   // 函数体存储语句的AST，Locals存储变量
-  Fn->Body = compoundStmt(Rest, Tok);
+  Fn->Body = compoundStmt(&Tok, Tok);
   // addType(Fn->Body);   // TODO CRUX 就tm这一句 卧槽卧槽卧槽   不知道什么时候删了 真特么啥币
   Fn->Locals = Locals;
-  return Fn;
+  return Tok;
 }
 
 // 语法解析入口函数
-// program = functionDefinition*
-Function *parse(Token *Tok) {
-  Function Head = {};
-  Function *Cur = &Head;
-
-  while (Tok->Kind != TK_EOF)
-    Cur = Cur->Next = function(&Tok, Tok);
-  // Cur->Next = function(&Tok, Tok);
-  // Cur = Cur->Next;
-  return Head.Next;
+// program = (functionDefinition | global-variable)*
+Obj *parse(Token *Tok) {
+  Globals = NULL;
+  while (Tok->Kind != TK_EOF) {
+    Type *BaseTy = declspec(&Tok, Tok);
+    Tok = function(Tok, BaseTy);
+  }
+  return Globals;
 }

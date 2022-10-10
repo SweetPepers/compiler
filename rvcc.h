@@ -60,26 +60,27 @@ Token *tokenize(char *Input);
 
 typedef struct Node Node;
 
-// 本地变量
+// 变量 或 函数
 typedef struct Obj Obj;
 struct Obj {
-  Obj *Next;  // 指向下一对象
-  char *Name; // 变量名
-  Type *Ty;   // 变量类型
-  int Offset; // fp的偏移量
-};
+  Obj *Next;       // 指向下一对象
+  char *Name;      // 变量名
+  Type *Ty;        // 变量类型
+  bool IsLocal;    // 局部变量还是全局变量
 
-// 函数
-typedef struct Function Function;
-struct Function {
-  Function *Next;  // 下一函数
-  char *Name;      // 函数名
+  // 局部变量
+  int Offset;      // fp的偏移量
 
+  // 函数或全局变量
+  bool IsFunction;
+
+  // 函数
   Obj *Params;     // 形参
   Node *Body;      // 函数体
   Obj *Locals;     // 本地变量
   int StackSize;   // 栈大小
 };
+
 
 // AST的节点种类
 typedef enum {
@@ -175,11 +176,11 @@ Type *funcType(Type *ReturnTy);
 
 
 // 语法解析入口函数
-Function *parse(Token *Tok);
+Obj *parse(Token *Tok);
 
 //
 // 语义分析与代码生成
 //
 
 // 代码生成入口函数
-void codegen(Function *Prog);
+void codegen(Obj *Prog);

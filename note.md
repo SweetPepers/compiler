@@ -915,3 +915,62 @@ x[y] 等价于 *(x+y)
   - CRUX:注意这个要放到`ident funcArgs?`前面, 否则, 会将sizeof()判定为函数, 因为`ident funcArgs?`除了当前tok还会判断下一个tok,
   - 明明有`TK_KEYWORD`为什么`sizeof`仍然被判定为`TK_IDENT`?
     破案了 当时`convertKeywords`条件被我改了, 原版是 `T->Kind != TK_EOF`, 被我改成了`T->Kind == TK_IDENT`, 导致中间出现个别的类型的tok就停止了 智障啊 
+
+### 31 融合var和function
+- rvcc.h
+```c
+// 本地变量
+typedef struct Obj Obj;
+struct Obj {
+  Obj *Next;  // 指向下一对象
+  char *Name; // 变量名
+  Type *Ty;   // 变量类型
+  int Offset; // fp的偏移量
+};
+
+// 函数
+typedef struct Function Function;
+struct Function {
+  Function *Next;  // 下一函数
+  char *Name;      // 函数名
+
+  Obj *Params;     // 形参
+  Node *Body;      // 函数体
+  Obj *Locals;     // 本地变量
+  int StackSize;   // 栈大小
+};
+```
+两者相同点多了去了 
+更改为
+```c
+// 变量 或 函数
+typedef struct Obj Obj;
+struct Obj {
+  Obj *Next;       // 指向下一对象
+  char *Name;      // 变量名
+  Type *Ty;        // 变量类型
+  bool IsLocal;    // 局部变量还是全局变量
+
+  // 局部变量
+  int Offset;      // fp的偏移量
+
+  // 函数或全局变量
+  bool IsFunction;
+
+  // 函数
+  Obj *Params;     // 形参
+  Node *Body;      // 函数体
+  Obj *Locals;     // 本地变量
+  int StackSize;   // 栈大小
+};
+```
+eposide::本地变量存哪去了???
+`newLVar`函数会维护本地变量
+
+- parse.c
+// program = (functionDefinition | global-variable)*
+将函数存放在全局变量里
+
+- codegen.c
+  注意输入Prog为Globals,(目前Globals中存储的全部为变量, 后面会加入全局变量), 要判断一下 `bool IsFunction`
+
