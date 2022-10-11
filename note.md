@@ -1318,3 +1318,4 @@ echo "$input" | ./rvcc - > tmp.s || exit
 输入参数为 `-` 则 `OptO = stdout`
 `-oXXX` 或者 `-o XXX`, `OptO = openFile(XXX)`
 
+至于`test-dirver.sh`应该是后续测试需要的
