@@ -1392,3 +1392,38 @@ static Obj *findVar(Token *Tok) {
   return NULL;
 }
 ```
+
+### 45 C重写测试
+这命令行sh够我看一礼拜
+
+
+```sh
+# 短短两行代码, 我得用一生治愈
+test/%.exe: rvcc test/%.c
+	$(CC) -o- -E -P -C test/$*.c | ./rvcc -o test/$*.s -
+	riscv64-linux-gnu-gcc -static -o $@ test/$*.s -xc test/common
+```
+makefile里面这几行shell命令 CRUX TODO  吐了
+```sh
+TEST_SRCS=$(wildcard test/*.c)
+TESTS=$(TEST_SRCS:.c=.exe)
+
+# 测试标签，运行测试
+test/%.exe: rvcc test/%.c
+	$(CC) -o- -E -P -C test/$*.c | ./rvcc -o test/$*.s -
+	# riscv64-linux-gnu-gcc -o- -E -P -C test/$*.c | ./rvcc -o test/$*.s -
+	# $(CC) -static -o $@ test/$*.s -xc test/common
+	riscv64-linux-gnu-gcc -static -o $@ test/$*.s -xc test/common
+
+test: $(TESTS)
+	# for i in $^; do echo $$i; ./$$i || exit 1; echo; done
+	for i in $^; do echo $$i; qemu-riscv64 -L $(RISCV)/sysroot ./$$i || exit 1; echo; done
+#	for i in $^; do echo $$i; $(RISCV)/bin/spike --isa=rv64gc $(RISCV)/riscv64-unknown-linux-gnu/bin/pk ./$$i || exit 1; echo; done
+	test/driver.sh
+# 清理标签，清理所有非源代码文件
+clean:
+	rm -rf rvcc tmp* $(TESTS) test/*.s test/*.exe
+	find * -type f '(' -name '*~' -o -name '*.o' ')' -exec rm {} ';'
+```
+
+运行起来了
