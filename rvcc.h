@@ -196,4 +196,4 @@ Obj *parse(Token *Tok);
 //
 
 // 代码生成入口函数
-void codegen(Obj *Prog);
+void codegen(Obj *Prog, FILE *out);

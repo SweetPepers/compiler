@@ -4,15 +4,18 @@
 static void genStmt(Node *Nd);
 static void genExpr(Node *Nd);
 
-// 输出字符串并换行
+// 输出文件
+static FILE *OutputFile;
+
+// 输出字符串到目标文件并换行
 static void printLn(char *Fmt, ...) {
   va_list VA;
 
   va_start(VA, Fmt);
-  vprintf(Fmt, VA);
+  vfprintf(OutputFile ,Fmt, VA);
   va_end(VA);
 
-  printf("\n");
+  fprintf(OutputFile, "\n");
 }
 
 // 代码段计数
@@ -430,7 +433,9 @@ void emitText(Obj *Prog) {
 }
 
 // 代码生成入口函数，包含代码块的基础信息
-void codegen(Obj *Prog) {
+void codegen(Obj *Prog, FILE *out){
+  // 设置目标文件的文件流指针
+  OutputFile = out;
   // 计算局部变量的偏移量
   assignLVarOffsets(Prog);
   // 生成数据

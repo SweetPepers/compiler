@@ -1182,6 +1182,7 @@ if (Stmt->Kind == ND_EXPR_STMT) {
 
 
 ### 40从文件中读取代码,改进报错信息
+输入格式更改
 核心两个函数**CRUX**, 好好学  太秀了
 从文件读取代码
 ```c
@@ -1306,3 +1307,14 @@ echo "$input" | ./rvcc - > tmp.s || exit
 ```
 管道的数据从stdin中进来, argv[1] = "-"
 **CRUX****管道从stdin来**
+
+
+### 42 支持-o和--help(-h)选项
+输出格式的更改
+`./rvcc input.c -o output`
+`./rvcc --help` / `./rvcc -h`  ==> `rvcc [ -o <path> ] <file>`
+
+- main.c中添加`parseArgs()`, 解析输入参数
+输入参数为 `-` 则 `OptO = stdout`
+`-oXXX` 或者 `-o XXX`, `OptO = openFile(XXX)`
+
