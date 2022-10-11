@@ -297,6 +297,24 @@ Token *tokenize(char *Filename, char *P) {
       continue;
     }
 
+    // 跳过行注释
+    if (startsWith(P, "//")) {
+      P += 2;
+      while (*P != '\n')
+        P++;
+      continue;
+    }
+
+    // 跳过块注释
+    if (startsWith(P, "/*")) {
+      // 查找第一个"*/"的位置
+      char *Q = strstr(P + 2, "*/");
+      if (!Q)
+        errorAt(P, "unclosed block comment");
+      P = Q + 2;
+      continue;
+    }
+
     // 解析数字
     if (isdigit(*P)) {
       // 初始化，类似于C++的构造函数

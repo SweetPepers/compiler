@@ -1319,3 +1319,25 @@ echo "$input" | ./rvcc - > tmp.s || exit
 `-oXXX` 或者 `-o XXX`, `OptO = openFile(XXX)`
 
 至于`test-dirver.sh`应该是后续测试需要的
+
+### 43 支持行注释和块注释
+```c
+    // 跳过行注释
+    if (startsWith(P, "//")) {
+      P += 2;
+      while (*P != '\n')
+        P++;
+      continue;
+    }
+
+    // 跳过块注释
+    if (startsWith(P, "/*")) {
+      // 查找第一个"*/"的位置
+      char *Q = strstr(P + 2, "*/");
+      if (!Q)
+        errorAt(P, "unclosed block comment");
+      P = Q + 2;
+      continue;
+    }
+```
+
