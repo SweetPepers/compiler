@@ -2,6 +2,23 @@
 // 生成AST  语法分析
 // 抽象语法树
 
+// 局部和全局变量的域
+typedef struct VarScope VarScope;
+struct VarScope {
+  VarScope *Next; // 下一变量域
+  char *Name;     // 变量域名称
+  Obj *Var;       // 对应的变量  
+};
+
+// 表示一个块域
+typedef struct Scope Scope;
+struct Scope {
+  Scope *Next;    // 指向上一级的域
+  VarScope *Vars; // 指向当前域内的变量
+};
+
+// 所有的域的链表
+static Scope *Scp = &(Scope){};
 
 // 在解析时，全部的变量实例都被累加到这个列表里。
 Obj *Locals;  // 局部变量
@@ -61,23 +78,39 @@ static Node *postfix(Token **Rest, Token *Tok);
 static Node *primary(Token **Rest, Token *Tok);
 static Node *funCall(Token **Rest, Token *Tok);
 
+// 进入域
+static void enterScope(void) {
+  Scope *S = calloc(1, sizeof(Scope));
+  // 后来的在链表头部
+  // 类似于栈的结构，栈顶对应最近的域
+  S->Next = Scp;
+  Scp = S;
+}
 
-// 通过名称，查找一个本地变量
+// 结束当前域
+static void leaveScope(void) { Scp = Scp->Next; }
+
+// 通过名称，查找一个变量  
+// 一个树状结构
 static Obj *findVar(Token *Tok) {
-  // 查找Locals变量中是否存在同名变量
-  for (Obj *Var = Locals; Var; Var = Var->Next)
-    // 判断变量名是否和终结符名长度一致，然后逐字比较。   
-    if (strlen(Var->Name) == Tok->Len &&  // 判断长度 a abc
-        strncmp(Tok->Loc, Var->Name, Tok->Len)==0)
-      return Var;
-
-  // 查找Globals变量中是否存在同名变量
-  for (Obj *Var = Globals; Var; Var = Var->Next)
-    // 判断变量名是否和终结符名长度一致，然后逐字比较。
-    if (strlen(Var->Name) == Tok->Len &&
-        !strncmp(Tok->Loc, Var->Name, Tok->Len))
-      return Var;
+  // 此处越先匹配的域，越深层
+  for (Scope *S = Scp; S; S = S->Next)  // next指向上一级的域
+    // 遍历域内的所有变量
+    for (VarScope *S2 = S->Vars; S2; S2 = S2->Next)  // next指向下一变量域
+      if (equal(Tok, S2->Name))
+        return S2->Var;
   return NULL;
+}
+
+// 将变量存入当前的域中
+static VarScope *pushScope(char *Name, Obj *Var) {
+  VarScope *S = calloc(1, sizeof(VarScope));
+  S->Name = Name;
+  S->Var = Var;
+  // 后来的在链表头部
+  S->Next = Scp->Vars;
+  Scp->Vars = S;
+  return S;
 }
 
 // 新建一个节点
@@ -122,6 +155,7 @@ static Obj *newVar(char *Name, Type *Ty) {
   Obj *Var = calloc(1, sizeof(Obj));
   Var->Name = Name;
   Var->Ty = Ty;
+  pushScope(Name, Var);
   return Var;
 }
 
@@ -383,6 +417,10 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
   Node *Nd = newNode(ND_BLOCK, Tok);  // 存储这里的tok
   Node Head = {};
   Node *Cur = &Head;
+
+  // 进入新的域
+  enterScope();
+
   // (declaration | stmt)* "}"
   while (!equal(Tok, "}")) {
     //declaration 
@@ -396,6 +434,9 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
     // 构造完AST后，为节点添加类型信息    // TODO   为什么在这里给节点添加信息???  我放到下面了
     addType(Cur);  // TODO CRUX 就tm这一句 卧槽卧槽卧槽  
   }
+
+  // 结束当前的域
+  leaveScope();
 
   // Nd的Body存储了{}内解析的语句
   
@@ -764,6 +805,8 @@ static Token *function(Token *Tok, Type *BaseTy) {
 
   // 清空本地变量Locals
   Locals = NULL;
+  // 进入新的域
+  enterScope();
   // 函数参数
   createParamLVars(Ty->Params);
   Fn->Params = Locals;
@@ -773,6 +816,8 @@ static Token *function(Token *Tok, Type *BaseTy) {
   Fn->Body = compoundStmt(&Tok, Tok);
   // addType(Fn->Body);   // TODO CRUX 就tm这一句 卧槽卧槽卧槽   不知道什么时候删了 真特么啥币
   Fn->Locals = Locals;
+  // 结束当前域
+  leaveScope();
   return Tok;
 }
 // int

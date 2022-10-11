@@ -276,5 +276,10 @@ assert 2 'int main() { // return 1;
              return 2; }'
 
 
-# 如果运行正常未提前退出，程序将显示OK
+# [44] 处理域
+assert 2 'int main() { int x=2; { int x=3; } return x; }'
+assert 2 'int main() { int x=2; { int x=3; } { int y=4; return x; }}'
+assert 3 'int main() { int x=2; { x=3; } return x; }'
+assert 4 'int main() { int x=2; int x = 4; { int x=3; } return x; }' # 一个作用域中的同名变量 TODO
+# 如果运行正常未提前退出，程序将显示OK 
 echo OK

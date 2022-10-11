@@ -1341,3 +1341,54 @@ echo "$input" | ./rvcc - > tmp.s || exit
     }
 ```
 
+### 44 处理代码块域
+```c
+// 局部和全局变量的域
+typedef struct VarScope VarScope;
+struct VarScope {
+  VarScope *Next; // 下一变量域
+  char *Name;     // 变量域名称
+  Obj *Var;       // 对应的变量  Var->Next 本身就是一个链表结构
+};
+
+// 表示一个块域
+typedef struct Scope Scope;
+struct Scope {
+  Scope *Next;    // 指向上一级的域
+  VarScope *Vars; // 指向当前域内的变量
+};
+
+// 所有的域的链表   CRUX 不是一个链表结构, 而是一个树状结构  Scp指向当前的作用域,而非最后一个作用域
+static Scope *Scp = &(Scope){};
+```
+维持这个结构需要的函数
+```c
+// 类似于栈
+// 进入域
+static void enterScope(void) {
+  Scope *S = calloc(1, sizeof(Scope));
+  // 后来的在链表头部
+  // 类似于栈的结构，栈顶对应最近的域
+  S->Next = Scp;
+  Scp = S;
+}
+
+void leaveScope(void) { Scp = Scp->Next; }  // 这个函数非常的牛逼
+```
+`{}`对应着变量域, 在函数定义`function`和复合语句`compoundStat`存在变量域的概念, 进入函数时 `enterScope`, 离开时`leaveScope`, 改变`Scp`指针的位置
+
+// TODO : 暂不支持检测变量是否在同一作用域内声明过`redefined`
+加入作用域后
+```c
+// 通过名称，查找一个变量  
+// 一个树状结构
+static Obj *findVar(Token *Tok) {
+  // 此处越先匹配的域，越深层
+  for (Scope *S = Scp; S; S = S->Next)  // next指向上一级的域
+    // 遍历域内的所有变量
+    for (VarScope *S2 = S->Vars; S2; S2 = S2->Next)  // next指向下一变量域
+      if (equal(Tok, S2->Name))
+        return S2->Var;
+  return NULL;
+}
+```
