@@ -1453,3 +1453,95 @@ clean:
 有两种
 - 正常的并列语句
 - 赋值语句使用(也就是上面的例子), `括号 ASSIGN Val`, 赋值为为括号中的,右部变量赋值
+
+### 49 支持struct
+下述格式的
+```c
+{ 
+  struct {
+    char a[3]; 
+    char b[5];
+  }x; 
+  char *p=&x; 
+  x.b[0]=7; 
+  p[3]; 
+}
+```
+**CRUX**x为变量 ND_VAR类型, 但是member为ND_MEMBER类型, ND_MEMBER类型不存储在locals或者globals中, 而是依托于x存在 
+
+
+- rvcc.h
+  ```cpp
+  NodeKind::ND_MEMBER // . 结构体成员访问   那个点
+  Member *Node::Mem;
+  TypeKind::TY_STRUCT
+
+
+  // 结构体成员
+  struct Member {
+    Member *Next; // 下一成员
+    Type *Ty;     // 类型
+    Token *Name;  // 名称
+    int Offset;   // 偏移量
+  };
+
+  ```
+
+- tokenize.c
+简单的把关键字`struct`加进去就行
+
+- parse.c
+新语法
+  ```c
+  // declspec = "char" | "int" | structDecl
+
+  // structDecl = "{" structMembers
+  // structMembers = (declspec declarator (","  declarator)* ";")*
+  // postfix = primary ("[" expr "]" | "." ident)*
+  ```
+  以新语法修改下列函数
+  ```c
+  bool isTypename(Token *Tok);
+  Type *declspec(Token **Rest, Token *Tok);
+  Node *postfix(Token **Rest, Token *Tok);
+  ```
+  新增下列函数
+  ```c
+  // structMembers = (declspec declarator (","  declarator)* ";")* "}"
+  void structMembers(Token **Rest, Token *Tok, Type *Ty);
+  // 每一个按照 Member 构建, , 存入链表中Member.Next
+
+  // structDecl = "{" structMembers
+  Type *structDecl(Token **Rest, Token *Tok);
+  // 判断类型, 同时遍历链表计算偏移量
+
+  // 获取结构体成员 遍历Mems
+  Member *getStructMember(Type *Ty, Token *Tok);
+
+  // 构建结构体成员的节点  用于 struct_a.member_b这种语法
+  // Nd中不直接存储成员, 而是存储在mem中
+  Node *structRef(Node *LHS, Token *Tok) {
+    addType(LHS);
+    if (LHS->Ty->Kind != TY_STRUCT)
+      errorTok(LHS->Tok, "not a struct");
+
+    Node *Nd = newUnary(ND_MEMBER, LHS, Tok); // member ND的左子树存储struct_a, tok为member_b
+    Nd->Mem = getStructMember(LHS->Ty, Tok);
+    return Nd;
+  }
+  ```
+- type.c
+  ```c
+  case ND_MEMBER:
+    Nd->Ty = Nd->Mem->Ty;  
+  ```
+- codegen.c
+  ND_MEMBER使用和ND_VAR相同,都是`genaddr`后`load`
+  ```c
+  genadd():
+    case ND_MEMBER:
+      genAddr(Nd->LHS);  // struct_a位置
+      printLn("  # 计算成员变量的地址偏移量");
+      printLn("  addi a0, a0, %d", Nd->Mem->Offset);
+  ```
+  

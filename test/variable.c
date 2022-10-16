@@ -50,6 +50,7 @@ int main() {
   // [44] 处理域
   ASSERT(2, ({ int x=2; { int x=3; } x; }));
   ASSERT(2, ({ int x=2; { int x=3; } int y=4; x; }));
+  ASSERT(4, ({ int x=2; int x = 4;{ int x=3; } int y=4; x; }));
   ASSERT(3, ({ int x=2; { x=3; } x; }));
 
   printf("OK\n");

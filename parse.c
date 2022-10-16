@@ -28,7 +28,7 @@ Obj *Globals; // 全局变量
 // program = (functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator"{" compoundStmt
 // global-variable = declarator?("," declarator)* ";"
-// declspec = "int" | "char"
+// declspec = "char" | "int" | structDecl
 // declarator = "*"* ident typeSuffix
 // typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
 // funcParams = (param ("," param)*)? ")"
@@ -50,7 +50,9 @@ Obj *Globals; // 全局变量
 // add = mul ("+" mul | "-" mul)*
 // mul = unary ("*" unary | "/" unary)*
 // unary = ("+" | "-" | "*" | "&") unary | postfix
-// postfix = primary ("[" expr "]")*
+// structDecl = "{" structMembers
+// structMembers = (declspec declarator (","  declarator)* ";")* "}"
+// postfix = primary ("[" expr "]" | "." ident)*
 // primary = "(" "{" stmt+ "}" ")"
 //         | "(" expr ")"
 //         | "sizeof" unary
@@ -73,6 +75,7 @@ static Node *equality(Token **Rest, Token *Tok);
 static Node *relational(Token **Rest, Token *Tok);
 static Node *add(Token **Rest, Token *Tok);
 static Node *mul(Token **Rest, Token *Tok);
+static Type *structDecl(Token **Rest, Token *Tok);
 static Node *unary(Token **Rest, Token *Tok);
 static Node *postfix(Token **Rest, Token *Tok);
 static Node *primary(Token **Rest, Token *Tok);
@@ -209,19 +212,30 @@ static int getNumber(Token *Tok) {
 
 // 判断是否为类型名
 static bool isTypename(Token *Tok) {
-  return equal(Tok, "char") || equal(Tok, "int");
+  return equal(Tok, "char") || equal(Tok, "int") || equal(Tok, "struct");
 }
 
 // (declarator specifier)
-// declspec = "int" | "char"
+// declspec = "char" | "int" | structDecl
 static Type *declspec(Token **Rest, Token *Tok) {
   // "char"
   if (equal(Tok, "char")) {
     *Rest = Tok->Next;
     return TyChar;
   }
-  *Rest = skip(Tok, "int");
-  return TyInt;
+  // "int"
+  if (equal(Tok, "int")) {
+    *Rest = Tok->Next;
+    return TyInt;
+  }
+
+  // structDecl
+  if (equal(Tok, "struct"))
+    return structDecl(Rest, Tok->Next);
+
+  errorTok(Tok, "typename expected");
+  return NULL;
+
 }
 
 // declarator = "*"* ident typeSuffix
@@ -684,21 +698,101 @@ static Node *unary(Token **Rest, Token *Tok) {
   return postfix(Rest, Tok);
 }
 
-// postfix = primary ("[" expr "]")*
+// structMembers = (declspec declarator (","  declarator)* ";")* "}"
+static void structMembers(Token **Rest, Token *Tok, Type *Ty) {
+  Member Head = {};
+  Member *Cur = &Head;
+
+  while (!equal(Tok, "}")) {
+    // declspec
+    Type *BaseTy = declspec(&Tok, Tok);
+    int First = true;
+
+    while (!consume(&Tok, Tok, ";")) {
+      if (!First)
+        Tok = skip(Tok, ",");
+      First = false;
+
+      Member *Mem = calloc(1, sizeof(Member));
+      // declarator
+      Mem->Ty = declarator(&Tok, Tok, BaseTy);
+      Mem->Name = Mem->Ty->Name;
+      Cur = Cur->Next = Mem;
+    }
+  }
+
+  *Rest = Tok->Next;
+  Ty->Mems = Head.Next;
+}
+
+// structDecl = "{" structMembers
+static Type *structDecl(Token **Rest, Token *Tok) {
+  Tok = skip(Tok, "{");
+
+  // 构造一个结构体
+  Type *Ty = calloc(1, sizeof(Type));
+  Ty->Kind = TY_STRUCT;
+  structMembers(Rest, Tok, Ty);
+
+  // 计算结构体内成员的偏移量
+  int Offset = 0;
+  for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+    Mem->Offset = Offset;
+    Offset += Mem->Ty->Size;
+  }
+  Ty->Size = Offset;
+
+  return Ty;
+}
+
+// 获取结构体成员 遍历Mems
+static Member *getStructMember(Type *Ty, Token *Tok) {
+  for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next)
+    if (Mem->Name->Len == Tok->Len &&
+        !strncmp(Mem->Name->Loc, Tok->Loc, Tok->Len))
+      return Mem;
+  errorTok(Tok, "no such member");
+  return NULL;
+}
+
+// 构建结构体成员的节点
+static Node *structRef(Node *LHS, Token *Tok) {
+  addType(LHS);
+  if (LHS->Ty->Kind != TY_STRUCT)
+    errorTok(LHS->Tok, "not a struct");
+
+  Node *Nd = newUnary(ND_MEMBER, LHS, Tok);
+  Nd->Mem = getStructMember(LHS->Ty, Tok);
+  return Nd;
+}
+
+// postfix = primary ("[" expr "]" | "." ident)*
 static Node *postfix(Token **Rest, Token *Tok) {
   // primary
   Node *Nd = primary(&Tok, Tok);  //primary(Rest, Tok);  rest之后在末尾会使用
 
-  // ("[" expr "]")*
-  while (equal(Tok, "[")) {
-    // x[y] 等价于 *(x+y)
-    Token *Start = Tok;
-    Node *Idx = expr(&Tok, Tok->Next);
-    Tok = skip(Tok, "]");
-    Nd = newUnary(ND_DEREF, newAdd(Nd, Idx, Start), Start);
+  // ("[" expr "]" | "." ident)*
+  while (true) {
+    // "[" expr "]"
+    if (equal(Tok, "[")) {
+      // x[y] 等价于 *(x+y)
+      Token *Start = Tok;
+      Node *Idx = expr(&Tok, Tok->Next);
+      Tok = skip(Tok, "]");
+      Nd = newUnary(ND_DEREF, newAdd(Nd, Idx, Start), Start);
+      continue;
+    }
+
+    // "." ident
+    if (equal(Tok, ".")) {
+      Nd = structRef(Nd, Tok->Next);
+      Tok = Tok->Next->Next;
+      continue;
+    }
+
+    *Rest = Tok;
+    return Nd;
   }
-  *Rest = Tok;
-  return Nd;
 }
 
 // 解析括号、数字、变量
