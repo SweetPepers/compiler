@@ -1544,4 +1544,21 @@ clean:
       printLn("  # 计算成员变量的地址偏移量");
       printLn("  addi a0, a0, %d", Nd->Mem->Offset);
   ```
+
+### 50 对齐结构体成员变量
+- rvcc.h
+`Type::Align`
+同时给`char, int, struct`还有`struct.member`添加Align
+struct的默认对齐为1, 存在member则为member中的最大对齐
+```c
+  // 修改成员offset的构建
+  for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+    Offset = alignTo(Offset, Mem->Ty->Align);
+    Mem->Offset = Offset;
+    Offset += Mem->Ty->Size;
+
+    if (Ty->Align < Mem->Ty->Align)
+      Ty->Align = Mem->Ty->Align;
+  }
+```
   
