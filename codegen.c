@@ -78,7 +78,11 @@ static void genAddr(Node *Nd) {
       // 解引用*
       genExpr(Nd->LHS);
       return;
-
+    // 逗号
+    case ND_COMMA:
+      genExpr(Nd->LHS);
+      genAddr(Nd->RHS);
+      return;
     default:
       break;
   }
@@ -156,6 +160,11 @@ static void genExpr(Node *Nd) {
   case ND_STMT_EXPR:
     for (Node *N = Nd->Body; N; N = N->Next)
       genStmt(N);
+    return;
+  // 逗号
+  case ND_COMMA:
+    genExpr(Nd->LHS);
+    genExpr(Nd->RHS);
     return;
   // 函数调用
   case ND_FUNCALL: {

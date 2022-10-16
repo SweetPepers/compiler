@@ -26,11 +26,15 @@ test/%.exe: rvcc test/%.c
 # $(CC) -static -o $@ test/$*.s -xc test/common
 	riscv64-linux-gnu-gcc -static -o $@ test/$*.s -xc test/common
 
+run/%: test/%.exe
+	qemu-riscv64 -L $(RISCV)/sysroot test/$*.exe || exit 1
+
 test: $(TESTS)
-	# for i in $^; do echo $$i; ./$$i || exit 1; echo; done
+# for i in $^; do echo $$i; ./$$i || exit 1; echo; done
 	for i in $^; do echo $$i; qemu-riscv64 -L $(RISCV)/sysroot ./$$i || exit 1; echo; done
 #	for i in $^; do echo $$i; $(RISCV)/bin/spike --isa=rv64gc $(RISCV)/riscv64-unknown-linux-gnu/bin/pk ./$$i || exit 1; echo; done
 	test/driver.sh
+
 # 清理标签，清理所有非源代码文件
 clean:
 	rm -rf rvcc tmp* $(TESTS) test/*.s test/*.exe
