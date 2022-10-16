@@ -2,7 +2,7 @@
 
 # 这个文件不用了
 
-# 将下列代码编译为tmp2.o，"-xc"强制以c语言进行编译
+# 将下列代码编译为tmp2.o, "-xc"强制以c语言进行编译
 # cat <<EOF | clang -xc -c -o tmp2.o -
 cat <<EOF | riscv64-linux-gnu-gcc -xc -c -o tmp2.o -
 int ret3() { return 3; }

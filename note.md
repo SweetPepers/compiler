@@ -1427,3 +1427,11 @@ clean:
 ```
 
 运行起来了
+
+`riscv64-linux-gnu-gcc -static -o test/arith.exe test/arith.s -xc test/common`
+用`riscv64-gcc` 以C程序编译的common文件
+
+`gcc -o- -E -P -C test/arith.c | ./rvcc -o test/arith.s -`
+- -E  Preprocess only; do not compile, assemble or link.
+- -P  // TODO 没找到
+- -C  // TODO 没找到
