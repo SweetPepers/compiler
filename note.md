@@ -1435,3 +1435,6 @@ clean:
 - -E  Preprocess only; do not compile, assemble or link.
 - -P  // TODO 没找到
 - -C  // TODO 没找到
+
+### 46 为Token预计算行号
+在tokenize中算好每个token在哪一行
