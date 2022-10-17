@@ -10,11 +10,22 @@ struct VarScope {
   Obj *Var;       // 对应的变量  
 };
 
+// 结构体标签的域
+typedef struct TagScope TagScope;
+struct TagScope {
+  TagScope *Next; // 下一标签域
+  char *Name;     // 域名称
+  Type *Ty;       // 域类型
+};
+
 // 表示一个块域
 typedef struct Scope Scope;
 struct Scope {
   Scope *Next;    // 指向上一级的域
+
+  // C有两个域：变量域，结构体标签域
   VarScope *Vars; // 指向当前域内的变量
+  TagScope *Tags; // 指向当前域内的结构体标签
 };
 
 // 所有的域的链表
@@ -28,7 +39,7 @@ Obj *Globals; // 全局变量
 // program = (functionDefinition* | global-variable)*
 // functionDefinition = declspec declarator"{" compoundStmt
 // global-variable = declarator?("," declarator)* ";"
-// declspec = "char" | "int" | structDecl
+// declspec = "char" | "int" | "struct" structDecl
 // declarator = "*"* ident typeSuffix
 // typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
 // funcParams = (param ("," param)*)? ")"
@@ -50,7 +61,7 @@ Obj *Globals; // 全局变量
 // add = mul ("+" mul | "-" mul)*
 // mul = unary ("*" unary | "/" unary)*
 // unary = ("+" | "-" | "*" | "&") unary | postfix
-// structDecl = "{" structMembers
+// structDecl = ident? ("{" structMembers)?
 // structMembers = (declspec declarator (","  declarator)* ";")* "}"
 // postfix = primary ("[" expr "]" | "." ident)*
 // primary = "(" "{" stmt+ "}" ")"
@@ -105,6 +116,15 @@ static Obj *findVar(Token *Tok) {
   return NULL;
 }
 
+// 通过Token查找标签
+static Type *findTag(Token *Tok) {
+  for (Scope *S = Scp; S; S = S->Next)
+    for (TagScope *S2 = S->Tags; S2; S2 = S2->Next)
+      if (equal(Tok, S2->Name))
+        return S2->Ty;
+  return NULL;
+}
+
 // 将变量存入当前的域中
 static VarScope *pushScope(char *Name, Obj *Var) {
   VarScope *S = calloc(1, sizeof(VarScope));
@@ -114,6 +134,14 @@ static VarScope *pushScope(char *Name, Obj *Var) {
   S->Next = Scp->Vars;
   Scp->Vars = S;
   return S;
+}
+
+static void pushTagScope(Token *Tok, Type *Ty) {
+  TagScope *S = calloc(1, sizeof(TagScope));
+  S->Name = strndup(Tok->Loc, Tok->Len);
+  S->Ty = Ty;
+  S->Next = Scp->Tags;
+  Scp->Tags = S;
 }
 
 // 新建一个节点
@@ -216,7 +244,7 @@ static bool isTypename(Token *Tok) {
 }
 
 // (declarator specifier)
-// declspec = "char" | "int" | structDecl
+// declspec = "char" | "int" | "struct" structDecl
 static Type *declspec(Token **Rest, Token *Tok) {
   // "char"
   if (equal(Tok, "char")) {
@@ -725,8 +753,21 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty) {
   Ty->Mems = Head.Next;
 }
 
-// structDecl = "{" structMembers
+// structDecl = ident? ("{" structMembers)?
 static Type *structDecl(Token **Rest, Token *Tok) {
+  Token *Tag = NULL;
+  if(Tok->Kind == TK_IDENT){
+    Tag = Tok;
+    Tok = Tok->Next;
+  }
+  if (Tag && !equal(Tok, "{")){  // 声明过struct
+    Type *Ty = findTag(Tag);
+    if(!Ty){
+      errorTok(Tag, "unknown struct type");
+    }
+    *Rest = Tok;
+    return Ty;
+  }
   Tok = skip(Tok, "{");
 
   // 构造一个结构体
@@ -747,6 +788,9 @@ static Type *structDecl(Token **Rest, Token *Tok) {
   }
   Ty->Size = alignTo(Offset, Ty->Align);
 
+  // 如果有名称就注册结构体类型
+  if (Tag)
+    pushTagScope(Tag, Ty);
   return Ty;
 }
 

@@ -1573,4 +1573,71 @@ struct的默认对齐为1, 存在member则为member中的最大对齐
       Var->Offset = -Offset;
   }
 ```
-  
+
+### 52 支持结构体标签
+下述格式的
+```c
+{ a
+  struct a{
+    char a[3]; 
+    char b[5];
+  };
+  struct a x; // x is type(struct a)  
+  char *p=&x; 
+  x.b[0]=7; 
+  p[3]; 
+}
+```
+
+结构体标签域
+整体的域结构
+```c
+// 局部和全局变量的域
+typedef struct VarScope VarScope;
+struct VarScope {
+  VarScope *Next; // 下一变量域
+  char *Name;     // 变量域名称
+  Obj *Var;       // 对应的变量  
+};
+
+// 结构体标签的域
+typedef struct TagScope TagScope;
+struct TagScope {
+  TagScope *Next; // 下一标签域
+  char *Name;     // 域名称
+  Type *Ty;       // 域类型
+};
+
+// 表示一个块域
+typedef struct Scope Scope;
+struct Scope {
+  Scope *Next;    // 指向上一级的域
+
+  // C有两个域：变量域，结构体标签域
+  VarScope *Vars; // 指向当前域内的变量
+  TagScope *Tags; // 指向当前域内的结构体标签
+};
+```
+标识一个数据结构暂时有两种格式
+- `ident` 变量 Var
+- `"struct" ident` 标签 Tag
+
+语法应该是下面这样的, 同时也支持之前不带标识符的语法(见49)
+```c
+// declspec = "char" | "int" | "struct" structDecl
+// structDecl = ident? ("{" structMembers)?
+{ 
+  struct t {
+    char a[2];
+  }; 
+  { 
+    struct t {
+      char a[4];
+    }; 
+  } 
+  int t = 1;
+  struct t y; 
+  return sizeof(y); 
+}
+```
+
