@@ -1561,4 +1561,16 @@ struct的默认对齐为1, 存在member则为member中的最大对齐
       Ty->Align = Mem->Ty->Align;
   }
 ```
+### 51 对齐局部变量
+计算完`offset`后对齐一下
+```c
+  for (Obj *Var = Fn->Locals; Var; Var = Var->Next) {
+      // 每个变量分配空间
+      Offset += Var->Ty->Size;
+      // 对齐变量
+      Offset = alignTo(Offset, Var->Ty->Align);
+      // 为每个变量赋一个偏移量，或者说是栈中地址
+      Var->Offset = -Offset;
+  }
+```
   
