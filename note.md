@@ -1717,5 +1717,9 @@ static void load(Type *Ty) {
 其次是把默认val类型由int改为int64_t
 外加添加`long`关键字
 
+### 58 short
+添加一些
+
+
 
 

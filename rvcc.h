@@ -163,6 +163,7 @@ struct Node {
 
 typedef enum {
   TY_CHAR,    // char字符类型
+  TY_SHORT, // short短整型
   TY_INT,     // int整型
   TY_LONG,    // long整型
   TY_PTR,     // 指针
@@ -204,6 +205,7 @@ struct Member {
 extern Type *TyChar;
 extern Type *TyInt;
 extern Type *TyLong;
+extern Type *TyShort;
 
 // 判断是否为整型
 bool isInteger(Type *TY);
