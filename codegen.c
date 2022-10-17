@@ -98,7 +98,7 @@ static void genAddr(Node *Nd) {
 
 // 加载a0指向的值
 static void load(Type *Ty) {
-  if (Ty->Kind == TY_ARRAY)
+  if (Ty->Kind == TY_ARRAY || Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION)
     return;
 
   printLn("  # 读取a0中存放的地址, 得到的值存入a0");
@@ -112,6 +112,16 @@ static void load(Type *Ty) {
 // 将a0存入栈顶值(为一个地址)
 static void store(Type *Ty) {
   pop("a1");
+  
+  if (Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION) {
+    printLn("  # asign to %s", Ty->Kind == TY_STRUCT ? "struct" : "union");
+    for (int I = 0; I < Ty->Size; ++I) {
+      printLn("  lb a2, %d(a0)", I);
+      printLn("  sb a2, %d(a1)", I);
+    }
+    return;
+  }
+
   printLn("  # 将a0的值, 写入到a1中存放的地址");
   if (Ty->Size == 1){
     printLn("  sb a0, 0(a1)");

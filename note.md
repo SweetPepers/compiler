@@ -1640,6 +1640,23 @@ struct Scope {
   return sizeof(y); 
 }
 ```
+**CRUX : 终于明白为什么 `int;` 不违法了**
+因为支持struct类型的声明, 下面几种struct都合法
+```c
+// 这个就对应 int;
+struct a {
+  int b;
+  int c;
+};
+
+struct a s_a;
+
+struct a {
+  int b;
+  int c;
+}b;
+
+```
 
 ### 53 支持->运算符
 x->y <==> (*x).y
@@ -1655,8 +1672,40 @@ x->y <==> (*x).y
   }
 ```
 
-### 53 支持union
+### 54 支持union
 联合体需要设置为最大的对齐量与大小，变量偏移量都默认为0
 union就是一个偏移量都为0的结构体, 注意设置`size`和`align`为最大值
+
+### 55 增加结构体赋值
+下列形式
+```c
+{ 
+  struct t {
+    char a, b;
+  } x, y; 
+  x.a=5; 
+  y=x;   // this line
+  return y.a; 
+}
+```
+
+对于`sturct/union`在ASSIGN阶段直接赋值, 复制`size`的内存
+
+CRUX : load为什么直接跳过?
+只有 `*a`(a为结构体)的情况才会调用`load`, 而`*a`的使用只能依托于`*a`的postfix和赋值语句, 单独`load` `*a`没有意义, 而且有错 
+```c
+// 加载a0指向的值
+static void load(Type *Ty) {
+  if (Ty->Kind == TY_ARRAY || Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION)
+    return;
+
+  printLn("  # 读取a0中存放的地址, 得到的值存入a0");
+  if(Ty->Size == 1){
+    printLn("  lb a0, 0(a0)");
+  }else{
+    printLn("  ld a0, 0(a0)");
+  }
+}
+```
 
 
