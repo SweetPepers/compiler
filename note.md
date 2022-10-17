@@ -1789,6 +1789,9 @@ if (Ty->Kind == TY_VOID)   // 不能声明void类型(可以声明void *)
 ```
 循环用加法判断结果属于哪个
 
+### 63 long long
+`long long`, `long long int`
+
 
 
 
