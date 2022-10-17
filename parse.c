@@ -36,8 +36,8 @@ Obj *Locals;  // 局部变量
 Obj *Globals; // 全局变量
 
 // 语法
-// program = (functionDefinition* | global-variable)*
-// functionDefinition = declspec declarator"{" compoundStmt
+// program = declspec (functionDefinition* | global-variable)*
+// functionDefinition = declarator ("{" compoundStmt | ";" )
 // global-variable = declarator?("," declarator)* ";"
 // declspec = "char" | "short" | "int" |"long" | "struct" structDecl | | "union" unionDecl
 // declarator = "*"* ( "(" declarator ")" | ident ) typeSuffix
@@ -1014,12 +1014,17 @@ static void createParamLVars(Type *Param) {
   }
 }
 
-// functionDefinition = declspec declarator"{" compoundStmt
+// functionDefinition = declarator ("{" compoundStmt | ";" )
 static Token *function(Token *Tok, Type *BaseTy) {
   Type *Ty = declarator(&Tok, Tok, BaseTy);
 
   Obj *Fn = newGVar(getIdent(Ty->Name), Ty);  // 函数为全局变量
   Fn->IsFunction = true;
+  Fn->IsDefinition = !consume(&Tok, Tok, ";");
+
+  // 判断是否没有函数定义
+  if (!Fn->IsDefinition)
+    return Tok;
 
   // 清空本地变量Locals
   Locals = NULL;
@@ -1068,7 +1073,7 @@ static bool isFunction(Token *Tok) {
 }
 
 // 语法解析入口函数
-// program = (functionDefinition | global-variable)*
+// program = declspec (functionDefinition | global-variable)*
 Obj *parse(Token *Tok) {
   Globals = NULL;
   while (Tok->Kind != TK_EOF) {

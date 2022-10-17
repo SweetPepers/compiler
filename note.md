@@ -1750,6 +1750,18 @@ static void load(Type *Ty) {
 
 TODO :: 所以`char (*x)[3]` 和 `char *x`相比有什么多余的作用吗?
 
+### 60 支持函数声明
+// functionDefinition = declarator ("{" compoundStmt | ";" )
+```c
+// function():
+  Fn->IsDefinition = !consume(&Tok, Tok, ";");
+
+  // 判断是否没有函数定义
+  if (!Fn->IsDefinition)
+    return Tok;
+```
+
+暂时没什么实际作用, 因为这个编译器没有先后顺序
 
 
 

@@ -86,7 +86,8 @@ struct Obj {
   int Offset;      // fp的偏移量
 
   // 函数或全局变量
-  bool IsFunction;
+  bool IsFunction;   // 是否为函数
+  bool IsDefinition; // 是否为函数定义
 
   // 全局变量
   char *InitData;

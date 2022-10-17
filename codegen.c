@@ -450,7 +450,7 @@ void genFun(Obj *Fn){
 // .data 全局变量
 static void emitData(Obj *Prog) {
   for (Obj *Var = Prog; Var; Var = Var->Next) {
-    if (Var->IsFunction)
+    if (Var->IsFunction )
       continue;
 
     printLn("  # 数据段标签");
@@ -481,7 +481,7 @@ static void emitData(Obj *Prog) {
 void emitText(Obj *Prog) {
   // 为每个函数单独生成代码
   for (Obj *Fn = Prog; Fn; Fn = Fn->Next) {
-    if(!Fn->IsFunction)
+    if(!Fn->IsFunction || !Fn->IsDefinition)
       continue;
     genFun(Fn);
   }
