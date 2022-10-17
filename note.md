@@ -1763,6 +1763,16 @@ TODO :: 所以`char (*x)[3]` 和 `char *x`相比有什么多余的作用吗?
 
 暂时没什么实际作用, 因为这个编译器没有先后顺序
 
+### 61 void
+处处受限制, 应该是指针强转, 类接口的需要
+```c
+if (Nd->LHS->Ty->Base->Kind == TY_VOID)  // 不能解引用
+  errorTok(Nd->Tok, "dereferencing a void pointer"); 
+
+if (Ty->Kind == TY_VOID)   // 不能声明void类型(可以声明void *)
+  errorTok(Tok, "variable declared void"); 
+```
+
 
 
 
