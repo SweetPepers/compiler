@@ -1641,3 +1641,17 @@ struct Scope {
 }
 ```
 
+### 53 支持->运算符
+x->y <==> (*x).y
+// postfix = primary ("[" expr "]" | "." ident)* | "->" ident)*
+```c
+  // "->" ident
+  if (equal(Tok, "->")) {
+    // x->y 等价于 (*x).y
+    Nd = newUnary(ND_DEREF, Nd, Tok);  // *x
+    Nd = structRef(Nd, Tok->Next);     // *x.y
+    Tok = Tok->Next->Next;
+    continue;
+  }
+```
+

@@ -63,7 +63,7 @@ Obj *Globals; // 全局变量
 // unary = ("+" | "-" | "*" | "&") unary | postfix
 // structDecl = ident? ("{" structMembers)?
 // structMembers = (declspec declarator (","  declarator)* ";")* "}"
-// postfix = primary ("[" expr "]" | "." ident)*
+// postfix = primary ("[" expr "]" | "." ident)* | "->" ident)*
 // primary = "(" "{" stmt+ "}" ")"
 //         | "(" expr ")"
 //         | "sizeof" unary
@@ -815,7 +815,7 @@ static Node *structRef(Node *LHS, Token *Tok) {
   return Nd;
 }
 
-// postfix = primary ("[" expr "]" | "." ident)*
+// postfix = primary ("[" expr "]" | "." ident)* | "->" ident)*
 static Node *postfix(Token **Rest, Token *Tok) {
   // primary
   Node *Nd = primary(&Tok, Tok);  //primary(Rest, Tok);  rest之后在末尾会使用
@@ -834,6 +834,15 @@ static Node *postfix(Token **Rest, Token *Tok) {
 
     // "." ident
     if (equal(Tok, ".")) {
+      Nd = structRef(Nd, Tok->Next);
+      Tok = Tok->Next->Next;
+      continue;
+    }
+
+    // "->" ident
+    if (equal(Tok, "->")) {
+      // x->y 等价于 (*x).y
+      Nd = newUnary(ND_DEREF, Nd, Tok);
       Nd = structRef(Nd, Tok->Next);
       Tok = Tok->Next->Next;
       continue;
