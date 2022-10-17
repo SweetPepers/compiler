@@ -40,7 +40,7 @@ Obj *Globals; // 全局变量
 // functionDefinition = declspec declarator"{" compoundStmt
 // global-variable = declarator?("," declarator)* ";"
 // declspec = "char" | "short" | "int" |"long" | "struct" structDecl | | "union" unionDecl
-// declarator = "*"* ident typeSuffix
+// declarator = "*"* ( "(" declarator ")" | ident ) typeSuffix
 // typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
 // funcParams = (param ("," param)*)? ")"
 // param = declspec declarator
@@ -288,12 +288,26 @@ static Type *declspec(Token **Rest, Token *Tok) {
 
 }
 
-// declarator = "*"* ident typeSuffix
+// declarator = "*"* ( "(" declarator ")" | ident ) typeSuffix
 static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
   // "*"*
   // 构建所有的（多重）指针
   while (consume(&Tok, Tok, "*"))
     Ty = pointerTo(Ty);
+  
+  // "(" declarator ")"
+  if (equal(Tok, "(")) {
+    // 记录"("的位置
+    Token *Start = Tok;
+    Type Dummy = {};
+    // 使Tok前进到")"后面的位置
+    declarator(&Tok, Start->Next, &Dummy);
+    Tok = skip(Tok, ")");
+    // 获取到括号后面的类型后缀，Ty为解析完的类型，Rest指向分号
+    Ty = typeSuffix(Rest, Tok, Ty);
+    // 解析Ty整体作为Base去构造，返回Type的值
+    return declarator(&Tok, Start->Next, Ty);
+  }
 
   if (Tok->Kind != TK_IDENT)
     errorTok(Tok, "expected a variable name");

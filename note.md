@@ -1720,6 +1720,37 @@ static void load(Type *Ty) {
 ### 58 short
 添加一些
 
+### 59 嵌套类型声明符
+// declarator = "*"* ( "(" ident ")" | "(" declarator ")" | ident ) typeSuffix
+嵌套类型声明符就是 `()`
+以下情况
+```c
+({ char *x[3]; sizeof(x); }) => 24
+({ char (*x)[3]; sizeof(x); }) => 8   // 一个指向 char[3] 类型的指针
+({ char *x[3]; char y; x[0]=&y; y=3; x[0][0]; }) => 3
+({ char x[3]; char (*y)[3]=x; y[0][0]=4; y[0][0]; }) => 4
+```
+
+`char (*x)[3];` 当作 `char[3] *x;`解析, 重新判断`type`
+```c
+  // "(" declarator ")"
+  if (equal(Tok, "(")) {
+    // 记录"("的位置
+    Token *Start = Tok;
+    Type Dummy = {};
+    // 使Tok前进到")"后面的位置
+    declarator(&Tok, Start->Next, &Dummy);
+    Tok = skip(Tok, ")");
+    // 获取到括号后面的类型后缀，Ty为解析完的类型，Rest指向分号
+    Ty = typeSuffix(Rest, Tok, Ty);
+    // 解析Ty整体作为Base去构造，返回Type的值
+    return declarator(&Tok, Start->Next, Ty);
+  }
+```
+
+TODO :: 所以`char (*x)[3]` 和 `char *x`相比有什么多余的作用吗?
+
+
 
 
 
