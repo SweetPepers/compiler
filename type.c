@@ -2,7 +2,7 @@
 
 // {TY_INT}构造了一个数据结构，(Type)强制类型转换为struct，然后&取地址
 Type *TyChar = &(Type){TY_CHAR, 1, 1};
-Type *TyInt = &(Type){TY_INT, 8, 8};
+Type *TyInt = &(Type){TY_INT, 4, 4};
 
 static Type *newType(TypeKind Kind, int Size, int Align) {
   Type *Ty = calloc(1, sizeof(Type));

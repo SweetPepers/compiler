@@ -1708,4 +1708,8 @@ static void load(Type *Ty) {
 }
 ```
 
+### 56 将int大小由8改为4
+改一下`TyInt`
+主要该`codegen.c`, 生成指令时判断一下size
+
 
