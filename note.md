@@ -1712,4 +1712,10 @@ static void load(Type *Ty) {
 改一下`TyInt`
 主要该`codegen.c`, 生成指令时判断一下size
 
+### 57 支持long类型
+主要是把默认类型int改为long, 如`ND_EQ,ND_NE,ND_LT,ND_LE,ND_NUM,ND_FUNCALL`
+其次是把默认val类型由int改为int64_t
+外加添加`long`关键字
+
+
 

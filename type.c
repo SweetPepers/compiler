@@ -3,6 +3,7 @@
 // {TY_INT}构造了一个数据结构，(Type)强制类型转换为struct，然后&取地址
 Type *TyChar = &(Type){TY_CHAR, 1, 1};
 Type *TyInt = &(Type){TY_INT, 4, 4};
+Type *TyLong = &(Type){TY_LONG, 8, 8};
 
 static Type *newType(TypeKind Kind, int Size, int Align) {
   Type *Ty = calloc(1, sizeof(Type));
@@ -13,7 +14,10 @@ static Type *newType(TypeKind Kind, int Size, int Align) {
 }
 
 // 判断Type是否为整数
-bool isInteger(Type *Ty) { return Ty->Kind == TY_INT || Ty->Kind == TY_CHAR; }
+bool isInteger(Type *Ty) { 
+  TypeKind k = Ty->Kind;
+  return k == TY_INT || k == TY_CHAR || k == TY_LONG; 
+}
 
 // 复制类型
 Type *copyType(Type *Ty) {
@@ -81,14 +85,14 @@ void addType(Node *Nd) {
       errorTok(Nd->LHS->Tok, "not an lvalue");
     Nd->Ty = Nd->LHS->Ty;
     return;
-  // 将节点类型设为 int
+  // 将节点类型设为 long
   case ND_EQ:
   case ND_NE:
   case ND_LT:
   case ND_LE:
   case ND_NUM:
   case ND_FUNCALL:
-    Nd->Ty = TyInt;
+    Nd->Ty = TyLong;
     return;
   // 将节点类型设为 变量的类型
   case ND_VAR:
