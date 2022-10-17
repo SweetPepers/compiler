@@ -1773,6 +1773,22 @@ if (Ty->Kind == TY_VOID)   // 不能声明void类型(可以声明void *)
   errorTok(Tok, "variable declared void"); 
 ```
 
+### 62 修正解析复杂类型声明
+// declspec = ("void" | "char" | "short" | "int" | "long" | structDecl | unionDecl)+
+主要解析 `short int,  int short, long int, int long`
+1左移 2,4 ,6, 8, 10 代表
+```c
+  enum {
+    VOID  = 1 << 0,
+    CHAR  = 1 << 2,
+    SHORT = 1 << 4,
+    INT   = 1 << 6,
+    LONG  = 1 << 8,
+    OTHER = 1 << 10,
+  };
+```
+循环用加法判断结果属于哪个
+
 
 
 
