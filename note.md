@@ -1,4 +1,4 @@
-shell 别有事没事加空格
+​	shell 别有事没事加空格
 
 fprintf(stderr, "%*s", Pos, "");   打印了pos個空格
 ### 4 token流 构造
@@ -317,10 +317,10 @@ main:
   - Node::Body // 代码块
 
 - parse.c
-// program = "{" compoundStmt
-// compoundStmt = stmt* "}"
-// stmt = "return" expr ";" | "{" compoundStmt | exprStmt
-// exprStmt = expr ";"
+  // program = "{" compoundStmt
+  // compoundStmt = stmt* "}"
+  // stmt = "return" expr ";" | "{" compoundStmt | exprStmt
+  // exprStmt = expr ";"
 
   parse()  为{}, 必须以{开始, 到}结束, 多个stmt用链表存储
 - codegen.c
@@ -726,11 +726,11 @@ EOF
   语法更新为
   ```c
   // primary = "(" expr ")" | ident func-args? | num
-
+  
   // funcall = ident "(" (assign ("," assign)*)? ")"
   ```
   解析primary时, 当前`Tok->Kind == TK_IDENT && Tok->Next == ")"`则进入 `funcall()`
-多条语句都用链表存储, 结果放入Nd->Args中
+  多条语句都用链表存储, 结果放入Nd->Args中
 - codegen.c
   添加6个寄存器对应调用参数, 解析`Args`时, 数数量, 并将结果依次压入栈中然后倒着pop出来
   第1-6个参数分别对应`"a0", "a1", "a2", "a3", "a4", "a5"`
@@ -745,16 +745,11 @@ EOF
 // compoundStmt = (declaration | stmt)* "}"
 // typeSuffix = ("(" ")")?
 
-
-// functionDefinition = declspec declarator? ident "(" ")" "{" compoundStmt*
 ```c
 int main(){
 
 }
-// TODO 这样是个啥??
-int ** main() myfunc(){
-  compoundStmt
-}
+
 ```
 - rvcc.h
   添加类型:TypeKind::TY_FUNC
@@ -984,7 +979,7 @@ eposide::本地变量存哪去了???
     static bool isFunction(Token *Tok) {
       if (equal(Tok, ";"))  // int;
         return false;
-
+  
       // CRUX 虚设变量，用于调用declarator, 判断下后面的类型
       Type Dummy = {};
       Type *Ty = declarator(&Tok, Tok, &Dummy);
@@ -1002,7 +997,7 @@ eposide::本地变量存哪去了???
       for (Obj *Var = Prog; Var; Var = Var->Next) {
         if (Var->IsFunction)
           continue;
-
+  
         printf("  # 数据段标签\n");
         printf("  .data\n");
         printf("  .globl %s\n", Var->Name);
@@ -1022,7 +1017,7 @@ eposide::本地变量存哪去了???
     x:
       # 零填充32位
       .zero 32
-
+  
       # 定义全局main段
       .globl main
       .text
@@ -1098,7 +1093,7 @@ char *Obj::InitData;  // 字符串初始化值 存在.data中
     a:
       # 全局变量零填充80位
       .zero 80
-
+  
       # 定义全局main段
       .globl main
       .text
@@ -1792,6 +1787,130 @@ if (Ty->Kind == TY_VOID)   // 不能声明void类型(可以声明void *)
 ### 63 long long
 `long long`, `long long int`
 
+### 64 typedef
+
+- 对于语句 `typedef struct a b;` :
+  1. 设置Attr->IsTypedef = trye
+  2. 返回 strcut a 的baseTy
+  3. 然后调用`parseTypedef`, 设置 b->Typedef = baseTy
+- 对于语句 `b a;`: `Istypename(b)`直接返回`findTypedef(b)`, 也就是b->Typedef
+
+新结构
+```c
+struct VarScope {
+  VarScope *Next; // 下一变量域
+  char *Name;     // 变量域名称
+  Obj *Var;       // 对应的变量  
+  Type *Typedef;  // 别名    new
+};
+
+// 变量属性
+typedef struct {
+  bool IsTypedef; // 是否为类型别名
+} VarAttr;
+```
+
+新函数
+```c
+// 查找类型别名
+static Type *findTypedef(Token *Tok) {
+  // 类型别名是个标识符
+  if (Tok->Kind == TK_IDENT) {
+    // 查找是否存在于变量域内
+    VarScope *S = findVar(Tok);
+    if (S)
+      return S->Typedef;
+  }
+  return NULL;
+}
+
+
+// 解析类型别名 
+// typedef struct a b  ==> 将 b 的Typedef 改为  struct a 
+static Token *parseTypedef(Token *Tok, Type *BaseTy) {
+  bool First = true;
+
+  while (!consume(&Tok, Tok, ";")) {
+    if (!First)
+      Tok = skip(Tok, ",");
+    First = false;
+
+    Type *Ty = declarator(&Tok, Tok, BaseTy);
+    // 类型别名的变量名存入变量域中，并设置类型
+    pushScope(getIdent(Ty->Name))->Typedef = Ty;
+  }
+  return Tok;
+}
+```
+
+`struct a b` : a 存在标签域中
+`typedef struct a b` : b 存在于变量域中
+
+```c
+
+// 一个 typedef struct a b进来 do
+// 1. 设置Attr->IsTypedef = trye
+// 2. 返回 strcut a 的baseTy
+static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
+  // 类型的组合，被表示为例如：LONG+LONG=1<<9
+  // 可知long int和int long是等价的。
+  // ...................
+
+  Type *Ty = TyInt;
+  int Counter = 0; // 记录类型相加的数值
+
+  // 遍历所有类型名的Tok
+  while (isTypename(Tok)) {
+    // 处理typedef关键字
+    if (equal(Tok, "typedef")) {
+      if (!Attr)
+        errorTok(Tok, "storage class specifier is not allowed in this context");
+      Attr->IsTypedef = true;
+      Tok = Tok->Next;
+      continue;
+    }
+
+    // 处理用户定义的类型
+    // typedef struct a b;
+    Type *Ty2 = findTypedef(Tok);   // struct a
+    if (equal(Tok, "struct") || equal(Tok, "union") || Ty2) {
+      if(Counter)  // 这几种不能嵌套
+        break;
+      if (equal(Tok, "struct")){
+        Ty = structDecl(&Tok, Tok->Next);
+      }else if (equal(Tok, "union")) {
+        Ty = unionDecl(&Tok, Tok->Next);
+      }else{
+        // 将类型设为类型别名指向的类型
+        Ty = Ty2;   // struct a 
+        Tok = Tok->Next;
+      }
+      Counter += OTHER;
+      continue;
+    }
+  }
+   // ..............................
+
+  *Rest = Tok;
+  return Ty;
+
+}
+
+```
+
+typedef 语法
+```c
+    // typedef struct a b;
+    if(isTypename(Tok)){
+      VarAttr Attr = {};
+      Type *BaseTy = declspec(&Tok, Tok, &Attr);
+      // 解析typedef的语句
+      if(Attr.IsTypedef){
+        Tok = parseTypedef(Tok, BaseTy);  // 将b放入变量域,并将b->Typedef = struct a
+        continue;
+      }
+    }
+```
 
 
 
