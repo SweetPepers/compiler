@@ -1939,3 +1939,110 @@ static Type *typename(Token **Rest, Token *Tok) {
   char *Suffix = Nd->LHS->Ty->Kind == TY_LONG || Nd->LHS->Ty->Base ? "" : "w";
   printLn("  add%s a0, a0, a1", Suffix);
 ```
+
+### 67 类型转换
+- parse.c
+// mul = cast ("*" cast | "/" cast)*
+// cast = ("(" typeName ")" cast) | unary
+// unary = ("+" | "-" | "*" | "&") cast | postfix
+
+```c
+// 新转换节点
+static Node *newCast(Node *Expr, Type *Ty) {
+  addType(Expr);
+
+  Node *Nd = calloc(1, sizeof(Node));
+  Nd->Kind = ND_CAST;
+  Nd->Tok = Expr->Tok;
+  Nd->LHS = Expr;
+  Nd->Ty = copyType(Ty);
+  return Nd;
+}
+
+// 解析类型转换
+// cast = ("(" typeName ")" cast) | unary
+static Node *cast(Token **Rest, Token *Tok) {
+  // cast = "(" typeName ")" cast
+  if (equal(Tok, "(") && isTypename(Tok->Next)) {
+    Token *Start = Tok;
+    Type *Ty = typename(&Tok, Tok->Next);
+    Tok = skip(Tok, ")");
+    // 解析嵌套的类型转换
+    Node *Nd = newCast(cast(Rest, Tok), Ty);
+    Nd->Tok = Start;
+    return Nd;
+  }
+
+  // unary
+  return unary(Rest, Tok);
+}
+```
+改变expr的类型
+
+- codegen.c 对 ND_CAST的处理
+```c
+  case ND_CAST:
+    genExpr(Nd->LHS);
+    cast(Nd->LHS->Ty, Nd->Ty); //  cast(from , to)
+    return;
+```
+
+**高位64-n位置零**
+```c
+// 类型枚举
+enum { I8, I16, I32, I64 };  // 0 1 2 3 
+
+// 获取类型对应的枚举值
+static int getTypeId(Type *Ty) {
+  switch (Ty->Kind) {
+  case TY_CHAR:
+    return I8;
+  case TY_SHORT:
+    return I16;
+  case TY_INT:
+    return I32;
+  default:
+    return I64;
+  }
+}
+
+// 类型映射表. 高64-n位置零
+// 先逻辑左移N位，再算术右移N位，就实现了将64位有符号数转换为64-N位的有符号数
+static char i64i8[] = "  # 转换为i8类型\n"
+                      "  slli a0, a0, 56\n"
+                      "  srai a0, a0, 56";
+static char i64i16[] = "  # 转换为i16类型\n"
+                       "  slli a0, a0, 48\n"
+                       "  srai a0, a0, 48";
+static char i64i32[] = "  # 转换为i32类型\n"
+                       "  slli a0, a0, 32\n"
+                       "  srai a0, a0, 32";
+
+// 所有类型转换表
+static char *castTable[10][10] = {
+    // clang-format off
+
+    // 转换到 cast to
+    // {i8,  i16,    i32,    i64}
+    {NULL,   NULL,   NULL,   NULL}, // 从i8转换
+    {i64i8,  NULL,   NULL,   NULL}, // 从i16转换
+    {i64i8,  i64i16, NULL,   NULL}, // 从i32转换
+    {i64i8,  i64i16, i64i32, NULL}, // 从i64转换
+
+    // clang-format on
+};
+
+// 类型转换
+static void cast(Type *From, Type *To) {
+  if (To->Kind == TY_VOID)
+    return;
+
+  // 获取类型的枚举值
+  int T1 = getTypeId(From);
+  int T2 = getTypeId(To);
+  if (castTable[T1][T2]) {
+    printLn("  # 转换函数");
+    printLn("%s", castTable[T1][T2]);
+  }
+}
+```
