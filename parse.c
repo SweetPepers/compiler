@@ -76,10 +76,13 @@ Obj *Globals; // 全局变量
 // postfix = primary ("[" expr "]" | "." ident)* | "->" ident)*
 // primary = "(" "{" stmt+ "}" ")"
 //         | "(" expr ")"
+//         | "sizeof" "(" typeName ")"
 //         | "sizeof" unary
 //         | ident funcArgs?
 //         | str
 //         | num
+// typeName = declspec abstractDeclarator
+// abstractDeclarator = "*"* ("(" abstractDeclarator ")")? typeSuffix
 
 // funcall = ident "(" (assign ("," assign)*)? ")"
 static bool isTypename(Token *Tok);
@@ -273,6 +276,38 @@ static bool isTypename(Token *Tok) {
       return true;
   }
   return findTypedef(Tok);
+}
+
+// abstractDeclarator = "*"* ("(" abstractDeclarator ")")? typeSuffix
+static Type *abstractDeclarator(Token **Rest, Token *Tok, Type *Ty) {
+  // "*"*
+  while (consume(&Tok, Tok, "*"))
+    Ty = pointerTo(Ty);
+
+  // ("(" abstractDeclarator ")")?
+  if (equal(Tok, "(")) {
+    Token *Start = Tok;
+    Type Dummy = {};
+    // 使Tok前进到")"后面的位置
+    abstractDeclarator(&Tok, Start->Next, &Dummy);
+    Tok = skip(Tok, ")");
+    // 获取到括号后面的类型后缀，Ty为解析完的类型，Rest指向分号
+    Ty = typeSuffix(Rest, Tok, Ty);
+    // 解析Ty整体作为Base去构造，返回Type的值
+    return abstractDeclarator(&Tok, Start->Next, Ty);
+  }
+
+  // typeSuffix
+  return typeSuffix(Rest, Tok, Ty);
+}
+
+// typeName = declspec abstractDeclarator
+// 获取类型的相关信息
+static Type *typename(Token **Rest, Token *Tok) {
+  // declspec
+  Type *Ty = declspec(&Tok, Tok, NULL);
+  // abstractDeclarator
+  return abstractDeclarator(Rest, Tok, Ty);
 }
 
 // (declarator specifier)
@@ -1007,11 +1042,14 @@ static Node *postfix(Token **Rest, Token *Tok) {
 // 解析括号、数字、变量
 // primary = "(" "{" stmt+ "}" ")"
 //         | "(" expr ")"
+//         | "sizeof" "(" typeName ")"
 //         | "sizeof" unary
 //         | ident funcArgs?
 //         | str
 //         | num
 static Node *primary(Token **Rest, Token *Tok) {
+  Token *Start = Tok;
+  
   // "(" "{" stmt+ "}" ")"
   if (equal(Tok, "(") && equal(Tok->Next, "{")) {
     // This is a GNU statement expresssion.
@@ -1050,6 +1088,14 @@ static Node *primary(Token **Rest, Token *Tok) {
     }
     *Rest = Tok->Next;
     return newVarNode(S->Var, Tok);
+  }
+
+  // "sizeof" "(" typeName ")"
+  if (equal(Tok, "sizeof") && equal(Tok->Next, "(") &&
+      isTypename(Tok->Next->Next)) {
+    Type *Ty = typename(&Tok, Tok->Next->Next);
+    *Rest = skip(Tok, ")");
+    return newNum(Ty->Size, Start);
   }
 
   // "sizeof" unary

@@ -1911,6 +1911,24 @@ typedef 语法
       }
     }
 ```
+### 65 对类型进行sizeof
 
+`parse.c/primary() : sizeof(int[10])`
+```c
+  // "sizeof" "(" typeName ")"
+  if (equal(Tok, "sizeof") && equal(Tok->Next, "(") &&
+      isTypename(Tok->Next->Next)) {
+    Type *Ty = typename(&Tok, Tok->Next->Next);
+    *Rest = skip(Tok, ")");
+    return newNum(Ty->Size, Start);
+  }
 
+static Type *typename(Token **Rest, Token *Tok) {
+  // declspec
+  Type *Ty = declspec(&Tok, Tok, NULL);
+  // abstractDeclarator
+  return abstractDeclarator(Rest, Tok, Ty);
+}
 
+```
+`abstractDeclarator` 和 `declarator`比起来就是没有`ident`, 其他相同, 虚空声明一个, 算一下type的大小完事
