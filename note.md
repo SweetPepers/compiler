@@ -1932,3 +1932,10 @@ static Type *typename(Token **Rest, Token *Tok) {
 
 ```
 `abstractDeclarator` 和 `declarator`比起来就是没有`ident`, 其他相同, 虚空声明一个, 算一下type的大小完事
+
+### 66 增加对32位指令的支持
+`codegen.c/genExpr()`
+```c
+  char *Suffix = Nd->LHS->Ty->Kind == TY_LONG || Nd->LHS->Ty->Base ? "" : "w";
+  printLn("  add%s a0, a0, a1", Suffix);
+```
