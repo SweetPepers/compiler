@@ -217,7 +217,14 @@ static void genExpr(Node *Nd) {
     printLn("  neg a0, a0");
     // printLn("  sub a0, x0, a0");
     return;
-      // 变量
+  // 非运算
+  case ND_NOT:
+    genExpr(Nd->LHS);
+    printLn("  # 非运算");
+    // a0=0则置1，否则为0
+    printLn("  seqz a0, a0");
+    return;
+  // 变量
   case ND_VAR:
   case ND_MEMBER:
     // 计算出变量的地址，然后存入a0

@@ -2298,6 +2298,19 @@ int isxdigit( int arg ); // char类型会被转换为int     // ctype.h
 unsigned long int strtoul(const char *str, char **endptr, int base) // <stdlib.h>
 ```
 
+### 81 !操作符
+// unary = ("+" | "-" | "*" | "&" | "!") cast | ("++" | "--") unary | postfix
+ND_NOT, 类型为TypeInt
+codegen
+```c
+case ND_NOT:
+  genExpr(Nd->LHS);
+  printLn("  # 非运算");
+  // seqz rd, rs  set rd to 1 if rs == 0
+  printLn("  seqz a0, a0"); 
+  return;
+```
+
 
 
 
