@@ -2058,3 +2058,15 @@ void usualArithConv(Node **LHS, Node **RHS);
 
  ASSERT(0, 1073741824 * 100 / 100); // 0x4000 0000  
 `integer overflow in expression of type ‘int’ results in ‘0’`
+
+### 69 对未定义或未声明的函数报错 
+funCall中查找
+```c
+  VarScope *S = findVar(Start);
+  if (!S)
+    errorTok(Start, "implicit declaration of a function");
+  if (!S->Var || S->Var->Ty->Kind != TY_FUNC)
+    errorTok(Start, "not a function");
+
+  Type *Ty = S->Var->Ty->ReturnTy;
+```

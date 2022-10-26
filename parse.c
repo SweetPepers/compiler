@@ -1178,6 +1178,15 @@ static Node *funCall(Token **Rest, Token *Tok) {
   Token *Start = Tok;
   Tok = Tok->Next->Next;  // ident "(" 
 
+  // 查找函数名
+  VarScope *S = findVar(Start);
+  if (!S)
+    errorTok(Start, "implicit declaration of a function");
+  if (!S->Var || S->Var->Ty->Kind != TY_FUNC)
+    errorTok(Start, "not a function");
+
+  Type *Ty = S->Var->Ty->ReturnTy;
+
   Node Head = {};
   Node *Cur = &Head;
 
@@ -1187,6 +1196,7 @@ static Node *funCall(Token **Rest, Token *Tok) {
     // assign
     Cur->Next = assign(&Tok, Tok);
     Cur = Cur->Next;
+    addType(Cur);  // 上面访问 Ty了
   }
 
   *Rest = skip(Tok, ")");
@@ -1194,6 +1204,7 @@ static Node *funCall(Token **Rest, Token *Tok) {
   Node *Nd = newNode(ND_FUNCALL, Start);
   // ident
   Nd->FuncName = strndup(Start->Loc, Start->Len);
+  Nd->Ty = Ty;
   Nd->Args = Head.Next;
   return Nd;
 }
