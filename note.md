@@ -2311,6 +2311,19 @@ case ND_NOT:
   return;
 ```
 
-
-
+### 82 ~按位取反
+// unary = ("+" | "-" | "*" | "&" | "!" | "~") cast
+//       | ("++" | "--") unary
+//       | postfix
+ND_NOT, 类型为左部的类型
+codegen 
+```c
+case ND_BITNOT:
+  genExpr(Nd->LHS);
+  printLn("  # 按位取反");
+  // 这里的 not a0, a0 为 xori a0, a0, -1 的伪码
+  // printLn("  not a0, a0");
+  printLn("  xori a0, a0, -1");
+  return;
+```
 
