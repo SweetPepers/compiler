@@ -2074,3 +2074,40 @@ funCall中查找
 ### 70 返回值的类型转换
 stmt中的 return语句 用`newcast()`转换为 `CurrentFn->returnTy`
 
+### 71 函数实参类型转换
+添加了 `Node::FunctionTy`, 但暂时只赋值, 没有用到
+- parse.c
+
+Params中保存了所有参数的类型, 循环遍历参数中, 用cast逐一转换
+`funCall()`  
+```c
+  // 函数名的类型
+  Type *Ty = S->Var->Ty;
+  // 函数形参的类型
+  Type *ParamTy = Ty->Params;    // Params中保存了所有参数的类型
+
+  Node Head = {};
+  Node *Cur = &Head;
+
+  while (!equal(Tok, ")")) {
+    if (Cur != &Head)
+      Tok = skip(Tok, ",");
+    // assign
+    Node *Arg = assign(&Tok, Tok);
+    addType(Arg);
+    // 逐一用cast转换
+    if (ParamTy) {
+      if (ParamTy->Kind == TY_STRUCT || ParamTy->Kind == TY_UNION)
+        errorTok(Arg->Tok, "passing struct or union is not supported yet");
+      // 将参数节点的类型进行转换
+      Arg = newCast(Arg, ParamTy);
+      // 前进到下一个形参类型
+      ParamTy = ParamTy->Next;
+    }
+    // 对参数进行存储
+    Cur->Next = Arg;
+    Cur = Cur->Next;
+    addType(Cur);
+  }
+```
+
