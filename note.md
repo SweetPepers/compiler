@@ -2274,6 +2274,30 @@ static Node *newIncDec(Node *Nd, Token *Tok, int Addend) {
 }
 ```
 
+### 80 2,8,16进制的数字
+八进制：以0开头，由0~7组成的数。如 0126, 050000.  
+511, 0777   # 8进制
+0, 0x0   
+10, 0xa  
+10, 0XA  
+48879, 0xbeef  
+48879, 0xBEEF  
+48879, 0XBEEF  
+0, 0b0  
+1, 0b1  
+47, 0b101111  
+47, 0B101111  
+
+用到的几个函数
+```c
+/* Compare no more than N chars of S1 and S2, ignoring case.  */
+int strncasecmp (const char *__s1, const char *__s2, size_t __n)  // <strings.h>
+// a hexadecimal character, isxdigit() returns a non-zero integer.
+int isxdigit( int arg ); // char类型会被转换为int     // ctype.h
+// 字符串转无符号长整型, 并更改endptr的值
+unsigned long int strtoul(const char *str, char **endptr, int base) // <stdlib.h>
+```
+
 
 
 

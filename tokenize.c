@@ -327,6 +327,39 @@ static void addLineNumbers(Token *Tok) {
   } while (*P++);
 }
 
+// 读取数字字面量
+static Token *readIntLiteral(char *Start) {
+  char *P = Start;
+
+  // 读取二、八、十、十六进制
+  // 默认为十进制
+  int Base = 10;
+  // 比较两个字符串前2个字符，忽略大小写，并判断是否为数字
+  if (!strncasecmp(P, "0x", 2) && isxdigit(P[2])) {
+    // 十六进制
+    P += 2;
+    Base = 16;
+  } else if (!strncasecmp(P, "0b", 2) && (P[2] == '0' || P[2] == '1')) {
+    // 二进制
+    P += 2;
+    Base = 2;
+  } else if (*P == '0') {
+    // 八进制
+    P++; // 0
+    Base = 8;
+  }
+
+  // 将字符串转换为Base进制的数字
+  long Val = strtoul(P, &P, Base);
+  if (isalnum(*P))
+    errorAt(P, "invalid digit");
+
+  // 构造NUM的终结符
+  Token *Tok = newToken(TK_NUM, Start, P);
+  Tok->Val = Val;
+  return Tok;
+}
+
 // 终结符解析，文件名，文件内容
 Token *tokenize(char *Filename, char *P) {
   CurrentFilename = Filename;
@@ -361,15 +394,10 @@ Token *tokenize(char *Filename, char *P) {
 
     // 解析数字
     if (isdigit(*P)) {
-      // 初始化，类似于C++的构造函数
-      // 我们不使用Head来存储信息，仅用来表示链表入口，这样每次都是存储在Cur->Next
-      // 否则下述操作将使第一个Token的地址不在Head中。
-      Cur->Next = newToken(TK_NUM, P, P);
-      // 指针前进
+      // 读取数字字面量
+      Cur->Next = readIntLiteral(P);
       Cur = Cur->Next;
-      const char *OldPtr = P;
-      Cur->Val = strtoul(P, &P, 10);
-      Cur->Len = P - OldPtr;
+      P += Cur->Len;
       continue;
     }
 
