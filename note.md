@@ -1440,7 +1440,7 @@ clean:
 ### 48 支持 , 运算符
 - ND_COMMA, // , 逗号
 - 语法`expr = assign ("," expr)?`
-, 干嘛的??
+, 干嘛的??  就是 `,`连接起来的一系列表达式, 相比stmt 的`expr*`解释多一个尾部值的Type
 ```c
   ASSERT(5, ({ int i=2, j=3; (i=5,j)=6; i; }));
   ASSERT(6, ({ int i=2, j=3; (i=5,j)=6; j; }));
@@ -2186,6 +2186,68 @@ enum t { zero, one, two }; enum t y;
 }
 ```
 Stmt中进入for语句时, `enterScope`, 然后末尾`leaveScope`, 主要判断开头是否为TypeName `isTypeName()`
+
+
+### 77 支持+= -= *= /=
+- tokenize  
+操作符中添加`+= -= *= /=`
+- parse  
+
+转换 `A op= B`为 `TMP = &A, *TMP = *TMP op B`
+// TODO : 为什么不能转换为`A = A op B` ?, 等到后面版本改一下, 测试用例里面没有指针加减法
+改了暂时也没问题
+```c
+  // ("+=" assign)?
+  if (equal(Tok, "+="))
+    return newBinary(ND_ASSIGN, Nd, newAdd(Nd, assign(Rest, Tok->Next), Tok), Tok);
+    // return toAssign(newAdd(Nd, assign(Rest, Tok->Next), Tok));
+
+  // ("-=" assign)?
+  if (equal(Tok, "-="))
+    return newBinary(ND_ASSIGN, Nd, newSub(Nd, assign(Rest, Tok->Next), Tok), Tok);
+    // return toAssign(newSub(Nd, assign(Rest, Tok->Next), Tok));
+
+  // ("*=" assign)?
+  if (equal(Tok, "*="))
+    return newBinary(ND_ASSIGN, Nd, newBinary(ND_MUL, Nd, assign(Rest, Tok->Next), Tok), Tok);
+    // return toAssign(newBinary(ND_MUL, Nd, assign(Rest, Tok->Next), Tok));
+
+  // ("/=" assign)?
+  if (equal(Tok, "/="))
+    return newBinary(ND_ASSIGN, Nd, newBinary(ND_DIV, Nd, assign(Rest, Tok->Next), Tok), Tok);
+    // return toAssign(newBinary(ND_DIV, Nd, assign(Rest, Tok->Next), Tok));
+```
+
+
+转换 A op= B为 TMP = &A, *TMP = *TMP op B
+```c
+static Node *toAssign(Node *Binary) {
+  // A B
+  Node *A = Binary->LHS, *B = Binary->RHS;
+  NodeKind op = Binary->Kind;
+  addType(A);
+  addType(B);
+  Token *Tok = Binary->Tok;
+
+  // TMP
+  Obj *Var = newLVar("", pointerTo(A->Ty));
+
+  // TMP = &A
+  Node *Expr1 = newBinary(ND_ASSIGN, newVarNode(Var, Tok),
+                          newUnary(ND_ADDR, A, Tok), Tok);
+
+  // *TMP = *TMP op B
+  Node *Expr2 = newBinary(
+      ND_ASSIGN, 
+      newUnary(ND_DEREF, newVarNode(Var, Tok), Tok),  // LHS
+      //RHS  *TMP op B
+      newBinary(op, newUnary(ND_DEREF, newVarNode(Var, Tok), Tok), B, Tok), 
+      Tok);
+
+  // TMP = &A, *TMP = *TMP op B
+  return newBinary(ND_COMMA, Expr1, Expr2, Tok);
+}
+```
 
 
 

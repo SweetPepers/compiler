@@ -73,7 +73,8 @@ static Obj *CurrentFn;
 //        | exprStmt
 // exprStmt = expr? ";"
 // expr = assign ("," expr)?
-// assign = equality ("=" assign)?
+// assign = equality (assignOp assign)?  
+// assignOp = "=" | "+=" | "-=" | "*=" | "/="
 // equality = relational ("==" relational | "!=" relational)*
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 // add = mul ("+" mul | "-" mul)*
@@ -111,6 +112,8 @@ static Node *assign(Token **Rest, Token *Tok);
 static Node *equality(Token **Rest, Token *Tok);
 static Node *relational(Token **Rest, Token *Tok);
 static Node *add(Token **Rest, Token *Tok);
+static Node *newAdd(Node *LHS, Node *RHS, Token *Tok);
+static Node *newSub(Node *LHS, Node *RHS, Token *Tok);
 static Node *mul(Token **Rest, Token *Tok);
 static Node *cast(Token **Rest, Token *Tok);
 static Type *structDecl(Token **Rest, Token *Tok);
@@ -798,8 +801,37 @@ static Node *expr(Token **Rest, Token *Tok) {
   return Nd;
 }
 
+// 转换 A op= B为 TMP = &A, *TMP = *TMP op B
+static Node *toAssign(Node *Binary) {
+  // A B
+  Node *A = Binary->LHS, *B = Binary->RHS;
+  NodeKind op = Binary->Kind;
+  addType(A);
+  addType(B);
+  Token *Tok = Binary->Tok;
+
+  // TMP
+  Obj *Var = newLVar("", pointerTo(A->Ty));
+
+  // TMP = &A
+  Node *Expr1 = newBinary(ND_ASSIGN, newVarNode(Var, Tok),
+                          newUnary(ND_ADDR, A, Tok), Tok);
+
+  // *TMP = *TMP op B
+  Node *Expr2 = newBinary(
+      ND_ASSIGN, 
+      newUnary(ND_DEREF, newVarNode(Var, Tok), Tok),  // LHS
+      //RHS  *TMP op B
+      newBinary(op, newUnary(ND_DEREF, newVarNode(Var, Tok), Tok), B, Tok), 
+      Tok);
+
+  // TMP = &A, *TMP = *TMP op B
+  return newBinary(ND_COMMA, Expr1, Expr2, Tok);
+}
+
 // 解析赋值
-// assign = equality ("=" assign)?
+// assign = equality (assignOp assign)?  
+// assignOp = "=" | "+=" | "-=" | "*=" | "/="
 static Node *assign(Token **Rest, Token *Tok) {
   // equality
   Node *Nd = equality(&Tok, Tok);
@@ -808,6 +840,27 @@ static Node *assign(Token **Rest, Token *Tok) {
   // ("=" assign)?
   if (equal(Tok, "="))
     return newBinary(ND_ASSIGN, Nd, assign(Rest, Tok->Next), Tok);
+
+  // ("+=" assign)?
+  if (equal(Tok, "+="))
+    // return newBinary(ND_ASSIGN, Nd, newAdd(Nd, assign(Rest, Tok->Next), Tok), Tok);
+    return toAssign(newAdd(Nd, assign(Rest, Tok->Next), Tok));
+
+  // ("-=" assign)?
+  if (equal(Tok, "-="))
+    // return newBinary(ND_ASSIGN, Nd, newSub(Nd, assign(Rest, Tok->Next), Tok), Tok);
+    return toAssign(newSub(Nd, assign(Rest, Tok->Next), Tok));
+
+  // ("*=" assign)?
+  if (equal(Tok, "*="))
+    // return newBinary(ND_ASSIGN, Nd, newBinary(ND_MUL, Nd, assign(Rest, Tok->Next), Tok), Tok);
+    return toAssign(newBinary(ND_MUL, Nd, assign(Rest, Tok->Next), Tok));
+
+  // ("/=" assign)?
+  if (equal(Tok, "/="))
+    // return newBinary(ND_ASSIGN, Nd, newBinary(ND_DIV, Nd, assign(Rest, Tok->Next), Tok), Tok);
+    return toAssign(newBinary(ND_DIV, Nd, assign(Rest, Tok->Next), Tok));
+  
   *Rest = Tok;
   return Nd;
 }
