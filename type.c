@@ -19,7 +19,7 @@ static Type *newType(TypeKind Kind, int Size, int Align) {
 // 判断Type是否为整数
 bool isInteger(Type *Ty) { 
   TypeKind k = Ty->Kind;
-  return k == TY_BOOL || k == TY_CHAR || k == TY_SHORT || k == TY_INT || k == TY_LONG ; 
+  return k == TY_BOOL || k == TY_CHAR || k == TY_SHORT || k == TY_INT || k == TY_LONG || k == TY_ENUM; 
 }
 
 // 复制类型
@@ -52,6 +52,9 @@ Type *funcType(Type *ReturnTy) {
   Ty->ReturnTy = ReturnTy;
   return Ty;
 }
+
+// 构造枚举类型
+Type *enumType(void) { return newType(TY_ENUM, 4, 4); }
 
 // 获取容纳左右部的类型
 static Type *getCommonType(Type *Ty1, Type *Ty2) {

@@ -2,16 +2,18 @@
 // 生成AST  语法分析
 // 抽象语法树
 
-// 局部和全局变量或是typedef的域
+// 局部和全局变量或是typedef的域, enum常量的域
 typedef struct VarScope VarScope;
 struct VarScope {
   VarScope *Next; // 下一变量域
   char *Name;     // 变量域名称
   Obj *Var;       // 对应的变量  
   Type *Typedef;  // 别名
+  Type *EnumTy;   // 枚举的类型
+  int EnumVal;    // 枚举的值
 };
 
-// 结构体标签和联合体标签的域
+// 结构体标签，联合体标签，枚举标签的域
 typedef struct TagScope TagScope;
 struct TagScope {
   TagScope *Next; // 下一标签域
@@ -24,7 +26,7 @@ typedef struct Scope Scope;
 struct Scope {
   Scope *Next;    // 指向上一级的域
 
-  // C有两个域：变量域，结构体标签域
+  // C有两个域：变量（或类型别名）域，结构体（或联合体，枚举）标签域
   VarScope *Vars; // 指向当前域内的变量
   TagScope *Tags; // 指向当前域内的结构体标签
 };
@@ -50,7 +52,11 @@ static Obj *CurrentFn;
 // global-variable = declarator?("," declarator)* ";"
 // declspec =  ("void" | "_Bool" | "char" | "short" | "int" |"long" 
 //            | "typedef"
-//            | "struct" structDecl | "union" unionDecl)+
+//            | "struct" structDecl | "union" unionDecl
+//            | "enum" enumSpecifier)+
+// enumSpecifier = ident? "{" enumList? "}"
+//                 | ident ("{" enumList? "}")?
+// enumList = ident ("=" num)? ("," ident ("=" num)?)*
 // declarator = "*"* ( "(" declarator ")" | ident ) typeSuffix
 // typeSuffix = "(" funcParams | "[" num "]" typeSuffix | ε
 // funcParams = (param ("," param)*)? ")"
@@ -91,6 +97,7 @@ static Obj *CurrentFn;
 // funcall = ident "(" (assign ("," assign)*)? ")"
 static bool isTypename(Token *Tok);
 static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr);
+static Type *enumSpecifier(Token **Rest, Token *Tok);
 static Type *declarator(Token **Rest, Token *Tok, Type *Ty);
 static Node *compoundStmt(Token **Rest, Token *Tok);
 static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty);
@@ -293,7 +300,7 @@ static long getNumber(Token *Tok) {
 // 判断是否为类型名
 static bool isTypename(Token *Tok) {
   static char *Kw[] = {
-      "void", "_Bool", "char", "short", "int", "long", "struct", "union", "typedef",
+      "void", "_Bool", "char", "short", "int", "long", "struct", "union", "typedef", "enum",
   };
 
   for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I) {
@@ -338,7 +345,8 @@ static Type *typename(Token **Rest, Token *Tok) {
 // (declarator specifier)
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
 //             | "typedef"
-//             | structDecl | unionDecl | typedefName)+
+//            | "struct" structDecl | "union" unionDecl
+//            | "enum" enumSpecifier)+
 static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
   // 类型的组合，被表示为例如：LONG+LONG=1<<9
   // 可知long int和int long是等价的。
@@ -369,13 +377,15 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
     // 处理用户定义的类型
     // typedef struct a b;
     Type *Ty2 = findTypedef(Tok);   // struct a
-    if (equal(Tok, "struct") || equal(Tok, "union") || Ty2) {
+    if (equal(Tok, "struct") || equal(Tok, "union") || equal(Tok, "enum") || Ty2) {
       if(Counter)  // 这几种不能嵌套
         break;
       if (equal(Tok, "struct")){
         Ty = structDecl(&Tok, Tok->Next);
       }else if (equal(Tok, "union")) {
         Ty = unionDecl(&Tok, Tok->Next);
+      }else if (equal(Tok, "enum")) {
+        Ty = enumSpecifier(&Tok, Tok->Next);
       }else{
         // 将类型设为类型别名指向的类型
         Ty = Ty2;   // struct a 
@@ -436,6 +446,65 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
   *Rest = Tok;
   return Ty;
 
+}
+
+// 获取枚举类型信息
+// enumSpecifier = ident? "{" enumList? "}"
+//               | ident ("{" enumList? "}")?
+// enumList      = ident ("=" num)? ("," ident ("=" num)?)*
+static Type *enumSpecifier(Token **Rest, Token *Tok) {
+  Type *Ty = enumType();
+
+  // 读取标签
+  // ident?
+  Token *Tag = NULL;
+  if (Tok->Kind == TK_IDENT) {
+    Tag = Tok;
+    Tok = Tok->Next;
+  }
+
+  // 处理没有{}的情况
+  if (Tag && !equal(Tok, "{")) {
+    Type *Ty = findTag(Tag);
+    if (!Ty)
+      errorTok(Tag, "unknown enum type");
+    if (Ty->Kind != TY_ENUM)
+      errorTok(Tag, "not an enum tag");
+    *Rest = Tok;
+    return Ty;
+  }
+
+  // "{" enumList? "}"
+  Tok = skip(Tok, "{");
+
+  // enumList
+  // 读取枚举列表
+  int I = 0;   // 第几个枚举常量
+  int Val = 0; // 枚举常量的值
+  while (!equal(Tok, "}")) {
+    if (I++ > 0)
+      Tok = skip(Tok, ",");
+
+    char *Name = getIdent(Tok);
+    Tok = Tok->Next;
+
+    // 判断是否存在赋值
+    if (equal(Tok, "=")) {
+      Val = getNumber(Tok->Next);
+      Tok = Tok->Next->Next;
+    }
+
+    // 存入枚举常量
+    VarScope *S = pushScope(Name);
+    S->EnumTy = Ty;
+    S->EnumVal = Val++;
+  }
+
+  *Rest = Tok->Next;
+
+  if (Tag)
+    pushTagScope(Tag, Ty);
+  return Ty;
 }
 
 // declarator = "*"* ( "(" declarator ")" | ident ) typeSuffix
@@ -1134,14 +1203,20 @@ static Node *primary(Token **Rest, Token *Tok) {
     if (equal(Tok->Next, "(")) { // 下一个为 "(", 当前是 标识符
       return funCall(Rest, Tok);
     }
-    // 查找变量
+    // 查找变量（或枚举常量）
     VarScope *S = findVar(Tok);
-    // 如果变量不存在，就在链表中新增一个变量
-    if(!S || !S->Var){
+    // 如果变量（或枚举常量）不存在，就在链表中新增一个变量
+    if(!S || (!S->Var && !S->EnumTy)){
       errorTok(Tok, "undefined variable");
     }
+    Node *Nd;
+    if(S->Var){
+      Nd = newVarNode(S->Var, Tok);
+    }else{
+      Nd = newNum(S->EnumVal, Tok);
+    }
     *Rest = Tok->Next;
-    return newVarNode(S->Var, Tok);
+    return Nd;
   }
 
   // "sizeof" "(" typeName ")"

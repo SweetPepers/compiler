@@ -2128,5 +2128,38 @@ addType中, 会对ASSIGN语句进行newCast转换
 
 ### 73 字符字面量
 和字符串字面量类似, 解析以 `'`开头的序列, 并设置位TK_NUM类型(int long char在tokenize中都为TK_NUM类型)
+literal 文字, 字面
+
+### 74 enum枚举类型
+- type.c
+TY_ENUM为整数
+构造枚举类型
+`Type *enumType(void) { return newType(TY_ENUM, 4, 4); }`  
+
+- parse.c
+VarScope中添加
+```c
+  Type *EnumTy;   // 枚举的类型   固定为enumType
+  int EnumVal;    // 枚举的值
+```
+
+语法更新
+// declspec =  ("void" | "_Bool" | "char" | "short" | "int" |"long" 
+//            | "typedef"
+//            | "struct" structDecl | "union" unionDecl
+//            | "enum" enumSpecifier)+
+// enumSpecifier = ident? "{" enumList? "}"
+//                 | ident ("{" enumList? "}")?
+
+几种enum语法
+```c
+enum { zero, five=5, three=3, four };
+enum t { zero, one, two }; enum t y;
+```
+枚举常量 `zero, one, two`要当作变量, 存入pushScope
+如果有别名(标签), 要`pushTagScope(Tag, Ty);`
+
+`primary()`解析标识符时`VarScope *S = findVar(Tok);`, 需判断标识符的类型, 按照`S->Var`和`S->EnumTy` 是否为空判断是变量还是枚举常量, 变量为`newVarNode(S->Var, Tok)`, 枚举常量为`newNum(S->EnumVal, Tok)`
+
 
 
