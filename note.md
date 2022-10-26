@@ -2125,3 +2125,8 @@ addType中, 会对ASSIGN语句进行newCast转换
 ```
 其他就是简单的添加类型
 
+
+### 73 字符字面量
+和字符串字面量类似, 解析以 `'`开头的序列, 并设置位TK_NUM类型(int long char在tokenize中都为TK_NUM类型)
+
+
