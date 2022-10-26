@@ -74,11 +74,11 @@ static Obj *CurrentFn;
 // exprStmt = expr? ";"
 // expr = assign ("," expr)?
 // assign = equality (assignOp assign)?  
-// assignOp = "=" | "+=" | "-=" | "*=" | "/="
+// assignOp = "=" | "+=" | "-=" | "*=" | "/=" | "%="
 // equality = relational ("==" relational | "!=" relational)*
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 // add = mul ("+" mul | "-" mul)*
-// mul = cast ("*" cast | "/" cast)*
+// mul = cast ("*" cast | "/" cast | "%" cast)*
 // cast = ("(" typeName ")" cast) | unary
 // unary = ("+" | "-" | "*" | "&" | "!" | "~") cast
 //       | ("++" | "--") unary
@@ -833,7 +833,7 @@ static Node *toAssign(Node *Binary) {
 
 // 解析赋值
 // assign = equality (assignOp assign)?  
-// assignOp = "=" | "+=" | "-=" | "*=" | "/="
+// assignOp = "=" | "+=" | "-=" | "*=" | "/=" | "%="
 static Node *assign(Token **Rest, Token *Tok) {
   // equality
   Node *Nd = equality(&Tok, Tok);
@@ -862,6 +862,11 @@ static Node *assign(Token **Rest, Token *Tok) {
   if (equal(Tok, "/="))
     // return newBinary(ND_ASSIGN, Nd, newBinary(ND_DIV, Nd, assign(Rest, Tok->Next), Tok), Tok);
     return toAssign(newBinary(ND_DIV, Nd, assign(Rest, Tok->Next), Tok));
+
+  // ("%=" assign)?
+  if (equal(Tok, "%="))
+    // return newBinary(ND_ASSIGN, Nd, newBinary(ND_MOD, Nd, assign(Rest, Tok->Next), Tok), Tok);
+    return toAssign(newBinary(ND_MOD, Nd, assign(Rest, Tok->Next), Tok));
   
   *Rest = Tok;
   return Nd;
@@ -1019,7 +1024,7 @@ static Node *add(Token **Rest, Token *Tok) {
 }
 
 // 解析乘除
-// mul = cast ("*" cast | "/" cast)*
+// mul = cast ("*" cast | "/" cast | "%" cast)*
 static Node *mul(Token **Rest, Token *Tok) {
   // cast
   Node *Nd = cast(&Tok, Tok);
@@ -1036,6 +1041,12 @@ static Node *mul(Token **Rest, Token *Tok) {
     // "/" cast
     if (equal(Tok, "/")) {
       Nd = newBinary(ND_DIV, Nd, cast(&Tok, Tok->Next), Start);
+      continue;
+    }
+
+    // "%" cast
+    if (equal(Tok, "%")) {
+      Nd = newBinary(ND_MOD, Nd, cast(&Tok, Tok->Next), Start);
       continue;
     }
 

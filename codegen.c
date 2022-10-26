@@ -322,6 +322,10 @@ static void genExpr(Node *Nd) {
   case ND_DIV: // / a0=a0/a1
     printLn("  div%s a0, a0, a1", Suffix);
     return;
+  case ND_MOD: // % a0=a0%a1
+    printLn("  # a0%%a1, 结果写入a0");
+    printLn("  rem%s a0, a0, a1", Suffix);
+    return;
   case ND_EQ:
   case ND_NE:
     // a0=a0^a1，异或指令

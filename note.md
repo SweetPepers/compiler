@@ -2327,3 +2327,15 @@ case ND_BITNOT:
   return;
 ```
 
+### 84 % %=
+与 `* *=`相同
+汇编指令
+```c
+case ND_MOD: // % a0=a0%a1
+  printLn("  # a0%%a1, 结果写入a0");
+  printLn("  rem%s a0, a0, a1", Suffix);
+  return;
+```
+
+
+
