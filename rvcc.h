@@ -120,7 +120,10 @@ typedef enum {
   ND_ADDR,      // 取地址 &
   ND_DEREF,     // 解引用 *  dereference
   ND_NOT,       // !，非
-  ND_BITNOT,    // ~，按位取非
+  ND_BITNOT,    // ~, 按位取非
+  ND_BITAND,    // &, 按位与
+  ND_BITOR,     // |, 按位或
+  ND_BITXOR,    // ^, 按位异或
   ND_RETURN,    // 返回
   ND_IF,        // if
   ND_FOR,       // "for" 或 "while" 循环

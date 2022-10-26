@@ -2327,7 +2327,7 @@ case ND_BITNOT:
   return;
 ```
 
-### 84 % %=
+### 83 % %=
 与 `* *=`相同
 汇编指令
 ```c
@@ -2337,5 +2337,36 @@ case ND_MOD: // % a0=a0%a1
   return;
 ```
 
+### 84 
+优先级`& ^ | assign` 
+// assign = bitOr (assignOp assign)?
+// bitOr = bitXor ("|" bitXor)*
+// bitXor = bitAnd ("^" bitAnd)*
+// bitAnd = equality ("&" equality)*
+// assignOp = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^="
 
+**CRUX BUG** : A & B, B变为了0   
+代码生成放错位置了, 按照一元运算符去解析了 nlgbd
+- rvcc.h
+  ND_BITAND,    // &, 按位与
+  ND_BITOR,     // |, 按位或
+  ND_BITXOR,    // ^, 按位异或
+- type.c
+按照 * 规则来
+
+
+- parse.c
+```c
+// 按位与
+// bitAnd = equality ("&" equality)*
+static Node *bitAnd(Token **Rest, Token *Tok) {
+  Node *Nd = equality(&Tok, Tok);
+  while (equal(Tok, "&")) {
+    Token *Start = Tok;
+    Nd = newBinary(ND_BITAND, Nd, equality(&Tok, Tok->Next), Start);
+  }
+  *Rest = Tok;
+  return Nd;
+}
+```
 
