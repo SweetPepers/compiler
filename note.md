@@ -2175,6 +2175,19 @@ enum t { zero, one, two }; enum t y;
 - codegen.c  
 生成函数代码时, 判断`IsStatic`, 判断是`.global` 还是 `.local`
 
+### 76 for循环域内定义局部变量
+```c
+{ 
+  int i=3; 
+  int j=0; 
+  for (int i=0; i<=10; i=i+1) 
+    j=j+i; 
+  return i; 
+}
+```
+Stmt中进入for语句时, `enterScope`, 然后末尾`leaveScope`, 主要判断开头是否为TypeName `isTypeName()`
+
+
 
 
 
