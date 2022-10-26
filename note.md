@@ -2249,6 +2249,11 @@ static Node *toAssign(Node *Binary) {
 }
 ```
 
+### 78 前置++ --
+// unary = ("+" | "-" | "*" | "&") cast | ("++" | "--") unary | postfix
+// 转换 ++i 为 i+=1  `toAssign(newAdd(unary(Rest, Tok->Next), newNum(1, Tok), Tok));`
+// 转换 --i 为 i-=1
+
 
 
 
