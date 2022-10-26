@@ -2254,6 +2254,25 @@ static Node *toAssign(Node *Binary) {
 // 转换 ++i 为 i+=1  `toAssign(newAdd(unary(Rest, Tok->Next), newNum(1, Tok), Tok));`
 // 转换 --i 为 i-=1
 
+### 79 后置++ --
+// postfix = primary ("[" expr "]" | "." ident)* | "->" ident | "++" | "--")*
+转换 A++ 为 `(typeof A)((A += 1) - 1)`  
+```c
+if (equal(Tok, "++")) {
+  Nd = newIncDec(Nd, Tok, 1); // -- -1
+  Tok = Tok->Next;
+  continue;
+}
+
+// 转换 A++ 为 `(typeof A)((A += 1) - 1)`
+// Increase Decrease
+static Node *newIncDec(Node *Nd, Token *Tok, int Addend) {
+  addType(Nd);
+  return newCast(newSub(toAssign(newAdd(Nd, newNum(Addend, Tok), Tok)),
+                        newNum(Addend, Tok), Tok),
+                 Nd->Ty);
+}
+```
 
 
 
