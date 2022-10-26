@@ -2370,3 +2370,61 @@ static Node *bitAnd(Token **Rest, Token *Tok) {
 }
 ```
 
+### 85 支持&&和||
+其他基本和 ND_NOT, ND_BITAND等相同  
+codegen有点不同
+因为实际的 `&&` 和 `||` 有提前跳转的机制, 比如 `1 && 0 && 1 && 26`, 计算到`1 && 0`就会停止, 需要实际模仿这个过程  
+放到 ND_NOT 下面  
+TODO: 搞明白 为什么放到前面和放到后面
+```c
+  // 逻辑与
+  case ND_LOGAND: {
+    int C = count();
+    printLn("\n# =====逻辑与%d===============", C);
+    genExpr(Nd->LHS);
+    // 判断是否为短路操作
+    printLn("  # 左部短路操作判断, 为0则跳转");
+    printLn("  beqz a0, .L.false.%d", C);
+    genExpr(Nd->RHS);
+    printLn("  # 右部判断, 为0则跳转");
+    printLn("  beqz a0, .L.false.%d", C);
+    printLn("  li a0, 1");
+    printLn("  j .L.end.%d", C);
+    printLn(".L.false.%d:", C);
+    printLn("  li a0, 0");
+    printLn(".L.end.%d:", C);
+    return;
+  }
+  // 逻辑或
+  case ND_LOGOR: {
+    int C = count();
+    printLn("\n# =====逻辑或%d===============", C);
+    genExpr(Nd->LHS);
+    // 判断是否为短路操作
+    printLn("  # 左部短路操作判断, 不为0则跳转");
+    printLn("  bnez a0, .L.true.%d", C);
+    genExpr(Nd->RHS);
+    printLn("  # 右部判断, 不为0则跳转");
+    printLn("  bnez a0, .L.true.%d", C);
+    printLn("  li a0, 0");
+    printLn("  j .L.end.%d", C);
+    printLn(".L.true.%d:", C);
+    printLn("  li a0, 1");
+    printLn(".L.end.%d:", C);
+    return;
+  }
+```
+
+|| 操作的汇编
+左部右部存在1就把`a0`置1, 然后结束
+```armasm
+  #LHS
+  bnez a0, .L.true
+  #RHS
+  bnez a0, .L.true
+  li a0, 0
+  j .L.end
+.L.true:
+  li a0,1
+.L.end:
+```
