@@ -2046,3 +2046,15 @@ static void cast(Type *From, Type *To) {
   }
 }
 ```
+
+### 68 实现常规算术转换
+- type.c
+```c
+// 根据Ty1, Ty2的类型, 返回能容纳两者类型的类型
+Type *getCommonType(Type *Ty1, Type *Ty2);
+// 将左右部用newcast函数转换为上述函数获得的通用类型
+void usualArithConv(Node **LHS, Node **RHS);
+```
+
+ ASSERT(0, 1073741824 * 100 / 100); // 0x4000 0000  
+`integer overflow in expression of type ‘int’ results in ‘0’`
