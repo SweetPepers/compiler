@@ -2,6 +2,7 @@
 
 // {TY_INT}构造了一个数据结构，(Type)强制类型转换为struct，然后&取地址
 Type *TyVoid = &(Type){TY_VOID, 1, 1};
+Type *TyBool = &(Type){TY_BOOL, 1, 1};
 Type *TyChar = &(Type){TY_CHAR, 1, 1};
 Type *TyShort = &(Type){TY_SHORT, 2, 2};
 Type *TyInt = &(Type){TY_INT, 4, 4};
@@ -18,7 +19,7 @@ static Type *newType(TypeKind Kind, int Size, int Align) {
 // 判断Type是否为整数
 bool isInteger(Type *Ty) { 
   TypeKind k = Ty->Kind;
-  return  k == TY_CHAR || k == TY_SHORT || k == TY_INT || k == TY_LONG ; 
+  return k == TY_BOOL || k == TY_CHAR || k == TY_SHORT || k == TY_INT || k == TY_LONG ; 
 }
 
 // 复制类型

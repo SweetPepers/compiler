@@ -2111,3 +2111,17 @@ Params中保存了所有参数的类型, 循环遍历参数中, 用cast逐一转
   }
 ```
 
+### 72 _Bool类型
+
+addType中, 会对ASSIGN语句进行newCast转换
+
+- codegen.c/newCast()
+```c
+  if (To->Kind == TY_BOOL) {
+    printLn("  # 转为bool类型：为0置0，非0置1");
+    printLn("  snez a0, a0");
+    return;
+  }
+```
+其他就是简单的添加类型
+
