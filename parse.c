@@ -41,6 +41,9 @@ static Scope *Scp = &(Scope){};
 Obj *Locals;  // 局部变量
 Obj *Globals; // 全局变量
 
+// 指向当前正在解析的函数
+static Obj *CurrentFn;
+
 // 语法
 // program = (typedef | functionDefinition* | global-variable)*
 // functionDefinition = declarator ("{" compoundStmt | ";" )
@@ -560,8 +563,12 @@ static Node *stmt(Token **Rest, Token *Tok) {
   // "return" expr ";"
   if (equal(Tok, "return")) {
     Node *Nd = newNode(ND_RETURN, Tok);
-    Nd->LHS = expr(&Tok, Tok->Next);
+    Node *Exp = expr(&Tok, Tok->Next);
     *Rest = skip(Tok, ";");
+
+    addType(Exp);
+    // 对于返回值进行类型转换
+    Nd->LHS = newCast(Exp, CurrentFn->Ty->ReturnTy);
     return Nd;
   }
 
@@ -1231,6 +1238,8 @@ static Token *function(Token *Tok, Type *BaseTy) {
   // 判断是否没有函数定义
   if (!Fn->IsDefinition)
     return Tok;
+
+  CurrentFn = Fn;
 
   // 清空本地变量Locals
   Locals = NULL;

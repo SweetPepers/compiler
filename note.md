@@ -2070,3 +2070,7 @@ funCall中查找
 
   Type *Ty = S->Var->Ty->ReturnTy;
 ```
+
+### 70 返回值的类型转换
+stmt中的 return语句 用`newcast()`转换为 `CurrentFn->returnTy`
+
