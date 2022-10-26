@@ -459,8 +459,13 @@ static void storeGeneral(int Reg, int Offset, int Size) {
 }
 
 void genFun(Obj *Fn){
-  printLn("\n  # 定义全局%s段", Fn->Name);
-  printLn("  .globl %s", Fn->Name);
+  if (Fn->IsStatic) {
+    printLn("\n  # 定义局部%s函数", Fn->Name);
+    printLn("  .local %s", Fn->Name);
+  } else {
+    printLn("\n  # 定义全局%s函数", Fn->Name);
+    printLn("  .globl %s", Fn->Name);
+  }
   printLn("  .text");  // 后面要有 .data
   printLn("# =====%s段开始===============", Fn->Name);
   printLn("# %s段标签", Fn->Name);

@@ -2161,5 +2161,20 @@ enum t { zero, one, two }; enum t y;
 
 `primary()`解析标识符时`VarScope *S = findVar(Tok);`, 需判断标识符的类型, 按照`S->Var`和`S->EnumTy` 是否为空判断是变量还是枚举常量, 变量为`newVarNode(S->Var, Tok)`, 枚举常量为`newNum(S->EnumVal, Tok)`
 
+### 75 文件域内函数
+也就是 `static`修饰函数的作用
+
+函数用`Obj`存储, 在其中添加`bool IsStatic`
+- parse.c  
+`declspec` 检查是否有`static`
+// declspec =  ("void" | "_Bool" | "char" | "short" | "int" |"long" 
+//            | "typedef" | | "static"
+//            | "struct" structDecl | "union" unionDecl
+//            | "enum" enumSpecifier)+
+并在`function()`参数列表中添加`VarAttr *Attr`, declspec 设置Attr, 然后将`Fn->IsStatic`赋值为`Attr->IsStatic`
+- codegen.c  
+生成函数代码时, 判断`IsStatic`, 判断是`.global` 还是 `.local`
+
+
 
 
