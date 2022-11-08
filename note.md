@@ -2563,3 +2563,23 @@ break本质上是 `goto end` 语句, 不同点是goto语句需要在语法分析
 ```
 
 代码生成中直接替换原来的end和条件跳转end为BrkLabel即可
+
+
+### 92 continue
+
+和 break基本相同
+在 Inc语句前添加continue标签
+```c
+  // 生成循环体语句
+  genStmt(Nd->Then);
+  // continue标签语句
+  printLn("%s:", Nd->ContLabel);
+  // 处理循环递增语句
+  if (Nd->Inc)
+    // 生成循环递增语句
+    genExpr(Nd->Inc);
+  // 跳转到循环头部
+  printLn("  j .L.begin.%d", C);
+  // 输出循环尾部标签
+  printLn("%s:", Nd->BrkLabel);
+```
