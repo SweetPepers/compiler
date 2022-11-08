@@ -374,6 +374,14 @@ static void genExpr(Node *Nd) {
     printLn("  # a0^a1, 结果写入a0");
     printLn("  xor a0, a0, a1");
     return;
+  case ND_SHL:   // << a0=a0<<a1
+    printLn(" # a0逻辑左移a1位");
+    printLn("  sll%s a0, a0, a1", Suffix);
+    return;
+  case ND_SHR:   // >> a0=a0>>a1
+    printLn(" # a0算术右移a1位");
+    printLn("  sra%s a0, a0, a1", Suffix);
+    return;
   case ND_EQ:
   case ND_NE:
     // a0=a0^a1，异或指令

@@ -124,6 +124,8 @@ typedef enum {
   ND_BITAND,    // &, 按位与
   ND_BITOR,     // |, 按位或
   ND_BITXOR,    // ^, 按位异或
+  ND_SHL,       // <<，左移
+  ND_SHR,       // >>，右移
   ND_LOGAND,    // &&，与
   ND_LOGOR,     // ||，或
   ND_RETURN,    // 返回

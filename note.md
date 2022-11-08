@@ -2583,3 +2583,13 @@ break本质上是 `goto end` 语句, 不同点是goto语句需要在语法分析
   // 输出循环尾部标签
   printLn("%s:", Nd->BrkLabel);
 ```
+
+### 93 << >>  <<= >>=
+优先级
+```c
+// equality = relational ("==" relational | "!=" relational)*
+// relational = shift ("<" shift | "<=" shift | ">" shift | ">=" shift)*
+// shift = add ("<<" add | ">>" add)*  
+// 也就是
+ a << 1+3 <=> a << 4
+```
