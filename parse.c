@@ -808,7 +808,7 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
   // (declaration | stmt)* "}"
   while (!equal(Tok, "}")) {
     //declaration 
-    if(isTypename(Tok)){
+    if(isTypename(Tok) && !equal(Tok->Next, ":")){ // 标签与tyde相同时会走这里
       VarAttr Attr = {};
       Type *BaseTy = declspec(&Tok, Tok, &Attr);
       // 解析typedef的语句

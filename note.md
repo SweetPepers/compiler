@@ -2530,3 +2530,11 @@ static void resolveGotoLabels(void) {
 uniquelabel:
   # nd->LHS (stmt)
 ```
+
+### 90 解决typedef和标签之间的冲突
+```c
+    //declaration 
+    if(isTypename(Tok) && !equal(Tok->Next, ":"))
+```
+
+isTypename()函数中会将tok和typedef的内容匹配, 如果标签名字和typedef定义相同, 会走这条控制分支
