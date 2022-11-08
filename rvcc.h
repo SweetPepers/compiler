@@ -192,7 +192,7 @@ typedef enum {
 struct Type{
   TypeKind Kind;  // 种类
   int Size;       // 大小, sizeof返回值
-  int Align; // 对齐
+  int Align;      // 对齐
   
   Type *Base;     // 指向的类型
   Token *Name;    // 类型对应的名称, 变量名 函数名等
@@ -238,6 +238,8 @@ void addType(Node *Nd);
 Type *arrayOf(Type *Base, int Len);
 // 枚举类型
 Type *enumType(void);
+// 结构体类型
+Type *structType(void);
 // 函数类型
 Type *funcType(Type *ReturnTy);
 

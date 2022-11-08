@@ -1249,25 +1249,39 @@ static Type *structUnionDecl(Token **Rest, Token *Tok) {
     Tag = Tok;
     Tok = Tok->Next;
   }
-  if (Tag && !equal(Tok, "{")){  // 声明过struct
-    Type *Ty = findTag(Tag);
-    if(!Ty){
-      errorTok(Tag, "unknown struct type");
-    }
+  // 构造不完整结构体
+  if (Tag && !equal(Tok, "{")){ 
     *Rest = Tok;
+
+    Type *Ty = findTag(Tag);
+    if (Ty)
+      return Ty;
+
+    // 未声明过的结构体标签
+    Ty = structType();
+    Ty->Size = -1;
+    pushTagScope(Tag, Ty);
     return Ty;
   }
+
+  // ("{" structMembers)?
   Tok = skip(Tok, "{");
 
   // 构造一个结构体
-  Type *Ty = calloc(1, sizeof(Type));
-  Ty->Kind = TY_STRUCT;
+  Type *Ty = structType();
   structMembers(Rest, Tok, Ty);
   Ty->Align = 1;
 
-  // 如果有名称就注册结构体类型
-  if (Tag)
+  // 如果是重复定义，就覆盖之前的定义。否则有名称就注册结构体类型
+  if (Tag){
+    for (TagScope *S = Scp->Tags;S;S = S->Next){
+      if (equal(Tag, S->Name)){
+        *S->Ty = *Ty;
+        return S->Ty;
+      }
+    }
     pushTagScope(Tag, Ty);
+  }
   return Ty;
 }  
 
@@ -1275,6 +1289,10 @@ static Type *structUnionDecl(Token **Rest, Token *Tok) {
 static Type *structDecl(Token **Rest, Token *Tok) {
   Type *Ty = structUnionDecl(Rest, Tok);
 
+  // 不完整结构体
+  if (Ty->Size < 0)
+    return Ty;
+  
   // 计算结构体内成员的偏移量
   int Offset = 0;
   for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
