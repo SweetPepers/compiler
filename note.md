@@ -2337,7 +2337,7 @@ case ND_MOD: // % a0=a0%a1
   return;
 ```
 
-### 84 
+### 84  & ^ |
 优先级`& ^ | assign` 
 // assign = bitOr (assignOp assign)?
 // bitOr = bitXor ("|" bitXor)*
@@ -2428,3 +2428,22 @@ TODO: 搞明白 为什么放到前面和放到后面
   li a0,1
 .L.end:
 ```
+
+### 86 不完整数组类型 a[]
+```c
+// typeSuffix = "(" funcParams | "[" arrayDimensions | ε
+// arrayDimensions = num? "]" typeSuffix
+
+  // "]" 无数组维数的 "[]"
+  if (equal(Tok, "]")) {
+    Ty = typeSuffix(Rest, Tok->Next, Ty);
+    return arrayOf(Ty, -1);
+  }
+```
+
+
+TODO 下面表示啥的?   增加不完整数组类型的概念  
+  ASSERT(8, sizeof(int(*)[10]));  
+  ASSERT(8, sizeof(int(*)[][10]));
+
+

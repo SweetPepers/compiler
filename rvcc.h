@@ -213,6 +213,7 @@ struct Type{
 struct Member {
   Member *Next; // 下一成员
   Type *Ty;     // 类型
+  Token *Tok;   // 报错信息
   Token *Name;  // 名称
   int Offset;   // 偏移量
 };
