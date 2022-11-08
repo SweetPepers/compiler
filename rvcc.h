@@ -144,6 +144,7 @@ typedef enum {
   ND_VAR,       // 变量
   ND_NUM,       // 整形
   ND_CAST,      // 类型转换
+  ND_MEMZERO,   // 栈中变量清零
 } NodeKind;
 
 // AST中二叉树节点

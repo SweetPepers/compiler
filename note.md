@@ -2848,3 +2848,24 @@ static Node *initDesigExpr(InitDesig *Desig, Token *Tok) {
 }
 
 ```
+
+### 98 为多余的数组元素赋0
+将原来的 `assign*, NULL_EXPR`改为 `memzero, assign*, NULL_EXPR`
+```c
+// codegen.c:genexpr():
+  case ND_MEMZERO: {
+    printLn("  # 对%s的内存%d(fp)清零%d位", Nd->Var->Name, Nd->Var->Offset,
+            Nd->Var->Ty->Size);
+    // 对栈内变量所占用的每个字节都进行清零
+    for (int I = 0; I < Nd->Var->Ty->Size; I++)
+      printLn("  sb zero, %d(fp)", Nd->Var->Offset + I);
+    return;
+  }
+  // parse.c:LVarInitializer():
+  // 先为所有元素赋0，然后有指定值的再进行赋值
+  Node *LHS = newNode(ND_MEMZERO, Tok);
+  LHS->Var = Var;
+```
+int A[3] = {};
+为空直接加 NULL_EXPR, *还不能跳着赋值*
+
