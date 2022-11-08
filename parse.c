@@ -70,10 +70,10 @@ static Node *CurrentSwitch;
 //            | "enum" enumSpecifier)+
 // enumSpecifier = ident? "{" enumList? "}"
 //                 | ident ("{" enumList? "}")?
-// enumList = ident ("=" num)? ("," ident ("=" num)?)*
+// enumList = ident ("=" constExpr)? ("," ident ("=" constExpr)?)*
 // declarator = "*"* ( "(" declarator ")" | ident ) typeSuffix
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
-// arrayDimensions = num? "]" typeSuffix
+// arrayDimensions = constExpr? "]" typeSuffix
 // funcParams = (param ("," param)*)? ")"
 // param = declspec declarator
 // compoundStmt = (typedef | declaration | stmt)* "}"
@@ -82,7 +82,7 @@ static Node *CurrentSwitch;
 // stmt = "return" expr ";"
 //        | "if" "(" expr ")" stmt ("else" stmt)?
 //        | "switch" "(" expr ")" stmt
-//        | "case" num ":" stmt
+//        | "case" constExpr ":" stmt
 //        | "default" ":" stmt
 //        | "for" "(" exprStmt expr? ";" expr? ")" stmt
 //        | "while" "(" expr ")" stmt
@@ -96,6 +96,7 @@ static Node *CurrentSwitch;
 // expr = assign ("," expr)?
 // assignOp = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>="
 // assign = conditional (assignOp assign)?
+// constExpr = conditional -> num
 // conditional = logOr ("?" expr ":" conditional)?
 // logOr = logAnd ("||" logAnd)*
 // logAnd = bitOr ("&&" bitOr)*
@@ -139,6 +140,7 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy);
 static Node *stmt(Token **Rest, Token *Tok);
 static Node *exprStmt(Token **Rest, Token *Tok);
 static Node *expr(Token **Rest, Token *Tok);
+static int64_t constExpr(Token **Rest, Token *Tok);
 static Node *assign(Token **Rest, Token *Tok);
 static Node *conditional(Token **Rest, Token *Tok);
 static Node *logOr(Token **Rest, Token *Tok);
@@ -332,13 +334,6 @@ static char *getIdent(Token *Tok) {
   return strndup(Tok->Loc, Tok->Len);
 }
 
-// 获取数字
-static long getNumber(Token *Tok) {
-  if (Tok->Kind != TK_NUM)
-    errorTok(Tok, "expected a number");
-  return Tok->Val;
-}
-
 // 判断是否为类型名
 static bool isTypename(Token *Tok) {
   static char *Kw[] = {
@@ -499,7 +494,7 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
 // 获取枚举类型信息
 // enumSpecifier = ident? "{" enumList? "}"
 //               | ident ("{" enumList? "}")?
-// enumList      = ident ("=" num)? ("," ident ("=" num)?)*
+// enumList      = ident ("=" constExpr)? ("," ident ("=" constExpr)?)*
 static Type *enumSpecifier(Token **Rest, Token *Tok) {
   Type *Ty = enumType();
 
@@ -537,10 +532,8 @@ static Type *enumSpecifier(Token **Rest, Token *Tok) {
     Tok = Tok->Next;
 
     // 判断是否存在赋值
-    if (equal(Tok, "=")) {
-      Val = getNumber(Tok->Next);
-      Tok = Tok->Next->Next;
-    }
+    if (equal(Tok, "=")) 
+      Val = constExpr(&Tok, Tok->Next);
 
     // 存入枚举常量
     VarScope *S = pushScope(Name);
@@ -588,7 +581,7 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
 }
 
 // 数组维数
-// arrayDimensions = num? "]" typeSuffix
+// arrayDimensions = constExpr? "]" typeSuffix
 static Type *arrayDimensions(Token **Rest, Token *Tok, Type *Ty) {
   // "]" 无数组维数的 "[]"
   if (equal(Tok, "]")) {
@@ -597,8 +590,8 @@ static Type *arrayDimensions(Token **Rest, Token *Tok, Type *Ty) {
   }
 
   // 有数组维数的情况
-  int Sz = getNumber(Tok);
-  Tok = skip(Tok->Next, "]");
+  int Sz = constExpr(&Tok, Tok);
+  Tok = skip(Tok, "]");
   Ty = typeSuffix(Rest, Tok, Ty);
   return arrayOf(Ty, Sz);
 }
@@ -699,7 +692,7 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy) {
 // stmt = "return" expr ";"
 //        | "if" "(" expr ")" stmt ("else" stmt)?
 //        | "switch" "(" expr ")" stmt
-//        | "case" num ":" stmt
+//        | "case" constExpr ":" stmt
 //        | "default" ":" stmt
 //        | "for" "(" exprStmt expr? ";" expr? ")" stmt
 //        | "while" "(" expr ")" stmt
@@ -766,15 +759,15 @@ static Node *stmt(Token **Rest, Token *Tok) {
     BrkLabel = Brk;
     return Nd;
   }
-  // "case" num ":" stmt
+  // "case" constExpr ":" stmt
   if (equal(Tok, "case")) {
     if (!CurrentSwitch)
       errorTok(Tok, "stray case");
     // case后面的数值
-    int Val = getNumber(Tok->Next);
-
+    
     Node *Nd = newNode(ND_CASE, Tok);
-    Tok = skip(Tok->Next->Next, ":");
+    int Val = constExpr(&Tok, Tok->Next);
+    Tok = skip(Tok, ":");
     Nd->Label = newUniqueName();
     // case中的语句
     Nd->LHS = stmt(Rest, Tok);
@@ -988,6 +981,83 @@ static Node *expr(Token **Rest, Token *Tok) {
   }
   *Rest = Tok;
   return Nd;
+}
+
+// 计算给定节点的常量表达式计算
+static int64_t eval(Node *Nd) {
+  addType(Nd);
+
+  switch (Nd->Kind) {
+  case ND_ADD:
+    return eval(Nd->LHS) + eval(Nd->RHS);
+  case ND_SUB:
+    return eval(Nd->LHS) - eval(Nd->RHS);
+  case ND_MUL:
+    return eval(Nd->LHS) * eval(Nd->RHS);
+  case ND_DIV:
+    return eval(Nd->LHS) / eval(Nd->RHS);
+  case ND_NEG:
+    return -eval(Nd->LHS);
+  case ND_MOD:
+    return eval(Nd->LHS) % eval(Nd->RHS);
+  case ND_BITAND:
+    return eval(Nd->LHS) & eval(Nd->RHS);
+  case ND_BITOR:
+    return eval(Nd->LHS) | eval(Nd->RHS);
+  case ND_BITXOR:
+    return eval(Nd->LHS) ^ eval(Nd->RHS);
+  case ND_SHL:
+    return eval(Nd->LHS) << eval(Nd->RHS);
+  case ND_SHR:
+    return eval(Nd->LHS) >> eval(Nd->RHS);
+  case ND_EQ:
+    return eval(Nd->LHS) == eval(Nd->RHS);
+  case ND_NE:
+    return eval(Nd->LHS) != eval(Nd->RHS);
+  case ND_LT:
+    return eval(Nd->LHS) < eval(Nd->RHS);
+  case ND_LE:
+    return eval(Nd->LHS) <= eval(Nd->RHS);
+  case ND_COND:
+    return eval(Nd->Cond) ? eval(Nd->Then) : eval(Nd->Els);
+  case ND_COMMA:
+    return eval(Nd->RHS);
+  case ND_NOT:
+    return !eval(Nd->LHS);
+  case ND_BITNOT:
+    return ~eval(Nd->LHS);
+  case ND_LOGAND:
+    return eval(Nd->LHS) && eval(Nd->RHS);
+  case ND_LOGOR:
+    return eval(Nd->LHS) || eval(Nd->RHS);
+  case ND_CAST:
+    if (isInteger(Nd->Ty)) {
+      switch (Nd->Ty->Size) {
+      case 1:
+        return (uint8_t)eval(Nd->LHS);
+      case 2:
+        return (uint16_t)eval(Nd->LHS);
+      case 4:
+        return (uint32_t)eval(Nd->LHS);
+      }
+    }
+    return eval(Nd->LHS);
+  case ND_NUM:
+    return Nd->Val;
+  default:
+    break;
+  }
+
+  errorTok(Nd->Tok, "not a compile-time constant");
+  return -1;
+}
+
+// 解析常量表达式
+static int64_t constExpr(Token **Rest, Token *Tok) {
+  // 进行常量表达式的构造
+  Node *Nd = conditional(Rest, Tok);
+  // 进行常量表达式的计算
+  return eval(Nd);
 }
 
 // 转换 A op= B为 TMP = &A, *TMP = *TMP op B

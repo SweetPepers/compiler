@@ -2705,3 +2705,58 @@ brk:
 `cond ? then(expr) : els(expr)`  
 等价于必定含有else语句的if语句
 但是属于表达式级别的(有结果值)
+
+### 96 常量表达式
+1+2 ==> 3  
+1 || 2 == > 1  
+直接在编译阶段将常量表达式算出来  
+但只能将提前知道结果为数字的类型算出来
+`1+2+3`可以算出来
+`1+2+3+a`不可以
+
+以下语法中要求为num的可以替换为constExpr
+```c
+// enumList = ident ("=" constExpr)? ("," ident ("=" constExpr)?)*
+// arrayDimensions = constExpr? "]" typeSuffix
+// "case" constExpr ":" stmt
+// 优先级
+// constExpr = conditional -> num
+
+static int64_t eval(Node *Nd); 
+// 先构造,后替换
+static int64_t constExpr(Token **Rest, Token *Tok) {
+  // 进行常量表达式的构造
+  Node *Nd = conditional(Rest, Tok);
+  // 进行常量表达式的计算
+  return eval(Nd);
+}
+```
+
+TODO  搞懂后面两个
+```c
+#include <stdio.h>
+
+int main(){ 
+  printf("%d\n", !0+1);  // 2
+  printf("%d\n", (int *)16-1);  // 12
+  printf("%d\n", (int *)0+2);   // 8
+}
+```
+
+两个测试用例错误 **CRUX**原因: tokenize.c  **0的处理**
+```c
+ASSERT(8, ({ char x[(int*)0+2]; sizeof(x); }));
+ASSERT(2, ({ char x[!0+1]; sizeof(x); }));
+
+// tokenize中 readIntLiteral()读取数字, 对0的处理出错, 直接将0跳过了
+// 原:
+int Base = 10;
+if (*P == '0')
+{
+  // 八进制
+  P++  // 这句应该删除
+  Base = 8;
+}
+```
+0直接被跳过了, 导致上面变为了 `x[(int*)+2]` `x[!+1]`
+

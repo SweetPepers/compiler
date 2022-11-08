@@ -345,7 +345,6 @@ static Token *readIntLiteral(char *Start) {
     Base = 2;
   } else if (*P == '0') {
     // 八进制
-    P++; // 0
     Base = 8;
   }
 
