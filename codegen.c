@@ -206,6 +206,9 @@ static void genExpr(Node *Nd) {
   printLn("  .loc 1 %d", Nd->Tok->LineNo);
   // 生成各个根节点
   switch (Nd->Kind) {
+  // 空表达式
+  case ND_NULL_EXPR:
+    return;
   // 加载数字到a0
   case ND_NUM:
     printLn("  li a0, %ld", Nd->Val);

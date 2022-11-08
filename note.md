@@ -2733,13 +2733,21 @@ static int64_t constExpr(Token **Rest, Token *Tok) {
 ```
 
 TODO  搞懂后面两个
+printf("%d\n", (int *)16-1);
+
+因为是%d  <==> int((int *)16-1)
+指针运算  会将  16-1 转换为了 16-1*sizeof(int) = 12
+然后 就  (int)(int *)12
+这个是 先把 22 存到 a0
+然后`load()`
+
 ```c
 #include <stdio.h>
 
 int main(){ 
-  printf("%d\n", !0+1);  // 2
   printf("%d\n", (int *)16-1);  // 12
   printf("%d\n", (int *)0+2);   // 8
+  printf("%d\n", (int *)16 - (int *)4);   // 3
 }
 ```
 
@@ -2760,3 +2768,83 @@ if (*P == '0')
 ```
 0直接被跳过了, 导致上面变为了 `x[(int*)+2]` `x[!+1]`
 
+### 97 局部数组变量初始化器 CRUX
+添加 空表达式 `ND_NULL_EXPR`  
+啥也不干, 直接跳过  
+- 定义结构  
+```c
+// 可变的初始化器。此处为树状结构。
+// 因为初始化器可以是嵌套的，
+// 类似于 int x[2][2] = {{1, 2}, {3, 4}} ，
+typedef struct Initializer Initializer;  // {1,2,3,4,5}
+struct Initializer {
+  Initializer *Next; // 下一个
+  Type *Ty;          // 原始类型
+  Token *Tok;        // 终结符
+
+  // 如果不是聚合类型，并且有一个初始化器，Expr 有对应的初始化表达式。
+  Node *Expr;
+
+  // 如果是聚合类型（如数组或结构体），Children有子节点的初始化器
+  Initializer **Children;
+};
+
+// 指派初始化，用于局部变量的初始化器
+typedef struct InitDesig InitDesig;  // designate
+struct InitDesig {
+  InitDesig *Next; // 下一个
+  int Idx;         // 数组中的索引
+  Obj *Var;        // 对应的变量
+};
+```
+常规类型比如int, 就直接用Expr进行赋值, 聚合类型比如struct, array就用children指向每个成员/数组成员  
+![](./picture/%E6%95%B0%E7%BB%84%E5%88%9D%E5%A7%8B%E5%8C%96%E5%99%A8.png)
+
+最后每个基础类型的初始化器中的`init`都存了一个`assign`语句
+```c
+int A[2][3] = {1, 2,3,4,5,6};
+// 转化为: 逗号表达式
+A[1][2] = 6, A[1][1] = 5, A[1][0] = 4, A[0][2] = 3, A[0][1] = 2, A[0][0] = 1;
+```
+```c
+// declaration = declspec (declarator ("=" initializer)? ("," declarator ("=" initializer)?)*)? ";"  
+// initializer = "{" initializer ("," initializer)* "}" | assign  
+static Node *LVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
+  // 获取初始化器，将值与数据结构一一对应
+  Initializer *Init = initializer(Rest, Tok, Var->Ty);
+  // 指派初始化
+  InitDesig Desig = {NULL, 0, Var};
+  // 创建局部变量的初始化
+  return createLVarInit(Init, Var->Ty, &Desig, Tok);
+}
+```
+LVarInitializer
+- 构造一个初始化器
+  `initializer()   initializer2()   newInitializer()`
+  - 初始化器中存着数组的结构
+  - 初始化器中末端存着初始的表达式值
+  - 初始化器不会产生任何语法树相关的内容(比如变量表, 赋值等)
+- 根据初始化器指派(designate)赋值
+  复合类型:`createLVarInit()` 基本类型:`initDesigExpr`
+  - Desig存储着每层每个(伪)变量的信息, 比如A[2][3]一共三层
+
+因为逗号表达式是两个值, 数组初始化指派中空出来一个, 所以有了空表达式占个位置 ND_NULL_EXPR
+
+```c
+// 指派初始化表达式  获取偏移地址, 逐层向外计算
+static Node *initDesigExpr(InitDesig *Desig, Token *Tok) {
+  // 返回Desig中的变量
+  if (Desig->Var)
+    return newVarNode(Desig->Var, Tok);
+
+  // 需要赋值的变量名
+  // 递归到次外层Desig，有此时最外层有Desig->Var
+  // 然后逐层计算偏移量
+  Node *LHS = initDesigExpr(Desig->Next, Tok);
+  // 偏移量
+  Node *RHS = newNum(Desig->Idx, Tok);
+  // 返回偏移后的变量地址
+  return newUnary(ND_DEREF, newAdd(LHS, RHS, Tok), Tok);
+}
+
+```
