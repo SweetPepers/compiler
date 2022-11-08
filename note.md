@@ -2593,3 +2593,105 @@ break本质上是 `goto end` 语句, 不同点是goto语句需要在语法分析
 // 也就是
  a << 1+3 <=> a << 4
 ```
+
+### 94 switch case语句
+case 的 constant-expression 必须与 switch 中的变量具有相同的数据类型，且必须是一个常量或字面量
+```c
+  // switch和case
+  Node *CaseNext;
+  Node *DefaultCase;
+```
+链表中存储了 一个switch后跟的所有case  
+
+ND_SWITCH节点负责 CurrentSwitch, 和break跳转目标的唯一性
+ND_CASE根据 CurrentSwitch 找到当前case链表, 并插入头部
+跳转标签是倒着来的, 但是case后语句是正常顺序
+
+```c
+ // "switch" "(" expr ")" stmt
+  if (equal(Tok, "switch")) {
+    Node *Nd = newNode(ND_SWITCH, Tok);
+    Tok = skip(Tok->Next, "(");
+    Nd->Cond = expr(&Tok, Tok);
+    Tok = skip(Tok, ")");
+
+    // 记录此前的CurrentSwitch
+    Node *Sw = CurrentSwitch;
+    // 设置当前的CurrentSwitch
+    CurrentSwitch = Nd;
+
+    // 存储此前break标签的名称
+    char *Brk = BrkLabel;
+    // 设置break标签的名称
+    BrkLabel = Nd->BrkLabel = newUniqueName();
+
+    // 进入解析各个case
+    // stmt
+    Nd->Then = stmt(Rest, Tok);
+
+    // 恢复此前CurrentSwitch
+    CurrentSwitch = Sw;
+    // 恢复此前break标签的名称
+    BrkLabel = Brk;
+    return Nd;
+  }
+  // "case" num ":" stmt
+  if (equal(Tok, "case")) {
+    if (!CurrentSwitch)
+      errorTok(Tok, "stray case");
+    // case后面的数值
+    int Val = getNumber(Tok->Next);
+
+    Node *Nd = newNode(ND_CASE, Tok);
+    Tok = skip(Tok->Next->Next, ":");
+    Nd->Label = newUniqueName();
+    // case中的语句
+    Nd->LHS = stmt(Rest, Tok);
+    // case对应的数值
+    Nd->Val = Val;
+    // 将旧的CurrentSwitch链表的头部存入Nd的CaseNext
+    Nd->CaseNext = CurrentSwitch->CaseNext;
+    // 将Nd存入CurrentSwitch的CaseNext
+    CurrentSwitch->CaseNext = Nd;
+    return Nd;
+  }
+  // "default" ":" stmt
+  if (equal(Tok, "default")) {
+    if (!CurrentSwitch)
+      errorTok(Tok, "stray default");
+
+    Node *Nd = newNode(ND_CASE, Tok);
+    Tok = skip(Tok->Next, ":");
+    Nd->Label = newUniqueName();
+    Nd->LHS = stmt(Rest, Tok);
+    // 存入CurrentSwitch->DefaultCase的默认标签
+    CurrentSwitch->DefaultCase = Nd;
+    return Nd;
+  }
+```
+```c
+switch(a){
+  case 1:
+  case 2:
+    break;
+  case 3:
+    break;
+  default:
+}
+
+```
+翻译后的代码
+```armasm
+  a0 = cond(a)
+  beq a0, t0, j 3
+  beq a0, t0, j 2
+  beq a0, t0, j 1
+  j default
+# Then
+1 : 
+2 : 
+  j brk
+3 : 
+  j brk
+brk:
+```
