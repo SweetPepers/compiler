@@ -2463,3 +2463,70 @@ TODO: 但是 `int a[10]` 也会被退化为 int *a, 那数组越界如何处理?
 ```c
   *S->Ty = *Ty;
 ```
+
+### 89 goto和标签语句
+
+```c
+  goto thisline;
+// ....
+
+thisline:
+```
+用链表存储当前函数中所有的goto和label, 最后统一解析
+```c
+  // "goto" ident ";"
+  if (equal(Tok, "goto")) {
+    Node *Nd = newNode(ND_GOTO, Tok);
+    Nd->Label = getIdent(Tok->Next);
+    // 将Nd同时存入Gotos，最后用于解析UniqueLabel
+    Nd->GotoNext = Gotos;
+    Gotos = Nd;
+    *Rest = skip(Tok->Next->Next, ";");
+    return Nd;
+  }
+
+  // ident ":" stmt
+  if (Tok->Kind == TK_IDENT && equal(Tok->Next, ":")) {
+    Node *Nd = newNode(ND_LABEL, Tok);
+    Nd->Label = strndup(Tok->Loc, Tok->Len);
+    Nd->UniqueLabel = newUniqueName();
+    Nd->LHS = stmt(Rest, Tok->Next->Next);  // goto后语句
+    // 将Nd同时存入Labels，最后用于goto解析UniqueLabel
+    Nd->GotoNext = Labels;
+    Labels = Nd;
+    return Nd;
+  }
+```
+
+解析函数: 对于每个goto语句都必须有存在的标签, 代码翻译时通过`UniqueLabel`记录位置
+```c
+// 匹配goto和标签
+// 因为标签可能会出现在goto后面，所以要在解析完函数后再进行goto和标签的解析
+static void resolveGotoLabels(void) {
+  // 遍历使goto对应上label
+  for (Node *X = Gotos; X; X = X->GotoNext) {
+    for (Node *Y = Labels; Y; Y = Y->GotoNext) {
+      if (!strcmp(X->Label, Y->Label)) {
+        X->UniqueLabel = Y->UniqueLabel;
+        break;
+      }
+    }
+
+    if (X->UniqueLabel == NULL)
+      errorTok(X->Tok->Next, "use of undeclared label");
+  }
+
+  Gotos = NULL;
+  Labels = NULL;
+}
+
+```
+
+翻译后代码
+```armasm
+#goto 
+  j uniquelabel
+
+uniquelabel:
+  # nd->LHS (stmt)
+```

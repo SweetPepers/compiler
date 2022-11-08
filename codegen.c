@@ -465,6 +465,15 @@ static void genStmt(Node *Nd) {
       for (Node *N = Nd->Body; N; N = N->Next)
         genStmt(N);
       return;
+    // goto语句
+    case ND_GOTO:
+      printLn("  j %s", Nd->UniqueLabel);
+      return;
+    // 标签语句
+    case ND_LABEL:
+      printLn("%s:", Nd->UniqueLabel);
+      genStmt(Nd->LHS);
+      return;
     case ND_RETURN:
       genExpr(Nd->LHS);
       // 无条件跳转语句，跳转到.L.return段
