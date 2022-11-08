@@ -2538,3 +2538,28 @@ uniquelabel:
 ```
 
 isTypename()函数中会将tok和typedef的内容匹配, 如果标签名字和typedef定义相同, 会走这条控制分支
+
+
+### 91 break
+for和while循环中使用
+
+break本质上是 `goto end` 语句, 不同点是goto语句需要在语法分析节点就要清楚跳转标签  
+所以增加 `Node::brkLabel`  
+
+每进入一个新的for/while循环语句, 就获取一个新的唯一标签  
+并把`brkLabel`设置为该标签    
+另外循环语句存在嵌套, 还需要一个局部变量存储上一标签以便复原
+```c
+  // "break" ";"
+  if (equal(Tok, "break")) {
+    if (!BrkLabel)
+      errorTok(Tok, "stray break");
+    // 跳转到break标签的位置
+    Node *Nd = newNode(ND_GOTO, Tok);
+    Nd->UniqueLabel = BrkLabel;
+    *Rest = skip(Tok->Next, ";");
+    return Nd;
+  }
+```
+
+代码生成中直接替换原来的end和条件跳转end为BrkLabel即可
