@@ -1760,6 +1760,7 @@ TODO :: 所以`char (*x)[3]` 和 `char *x`相比有什么多余的作用吗?
 
 ### 61 void
 处处受限制, 应该是指针强转, 类接口的需要
+TODO void 类型干嘛的? 
 ```c
 if (Nd->LHS->Ty->Base->Kind == TY_VOID)  // 不能解引用
   errorTok(Nd->Tok, "dereferencing a void pointer"); 
@@ -2695,3 +2696,12 @@ switch(a){
   j brk
 brk:
 ```
+
+### 95 三元条件运算符
+```c
+// assign = conditional (assignOp assign)?
+// conditional = logOr ("?" expr ":" conditional)?
+```
+`cond ? then(expr) : els(expr)`  
+等价于必定含有else语句的if语句
+但是属于表达式级别的(有结果值)
