@@ -606,6 +606,12 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
       Tok = skip(Tok, ",");
     Type *BaseTy = declspec(&Tok, Tok, NULL); // int
     Type *DeclarTy = declarator(&Tok, Tok, BaseTy); // int ***  []
+    // T类型的数组被转换为T*
+    if (DeclarTy->Kind == TY_ARRAY){
+      Token *Name = DeclarTy->Name;
+      DeclarTy = pointerTo(DeclarTy->Base);
+      DeclarTy->Name = Name;
+    }
 
     // 将类型复制到形参链表一份
     // DeclarTy出了这个函数就没了, 所有要copy
