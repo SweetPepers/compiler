@@ -2885,3 +2885,17 @@ static Token *skipExcessElement(Token *Tok) {
   return Tok;
 }
 ```
+
+### 100 字符串字面量的初始化
+修改下初始化器
+```c
+// stringInitializer = stringLiteral
+static void stringInitializer(Token **Rest, Token *Tok, Initializer *Init) {
+  // 取数组和字符串的最短长度
+  int Len = MIN(Init->Ty->ArrayLen, Tok->Ty->ArrayLen);
+  // 遍历赋值
+  for (int I = 0; I < Len; I++)
+    Init->Children[I]->Expr = newNum(Tok->Str[I], Tok);
+  *Rest = Tok->Next;
+}
+```
