@@ -727,6 +727,28 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy) {
   return Nd;
 }
 
+// 跳过多余的元素
+static Token *skipExcessElement(Token *Tok) {
+  // if (equal(Tok, "{")) {
+  //   Tok = skipExcessElement(Tok->Next);
+  //   return skip(Tok, "}");
+  // }
+
+  // // 解析并舍弃多余的元素
+  // errorTok(Tok, "");
+  // assign(&Tok, Tok);  // 只解析  不赋值
+  for (int remain = 1;;remain;Tok = Tok->Next){
+    if (equal(Tok, "}")){
+      remain--;
+      if (!remain)
+        return Tok; // 保留 "}"
+    }
+    else if(equal(Tok, "{"))
+      remain++;
+  }
+  return Tok;
+}
+
 // initializer = "{" initializer ("," initializer)* "}" | assign
 static void initializer2(Token **Rest, Token *Tok, Initializer *Init) {
   // "{" initializer ("," initializer)* "}"
@@ -734,10 +756,13 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init) {
     Tok = skip(Tok, "{");
 
     // 遍历数组
-    for (int I = 0; I < Init->Ty->ArrayLen && !equal(Tok, "}"); I++) {
+    for (int I = 0; !consume(Rest, Tok, "}"); I++) {
       if (I > 0)
         Tok = skip(Tok, ",");
-      initializer2(&Tok, Tok, Init->Children[I]);
+      if (I < Init->Ty->ArrayLen)
+        initializer2(&Tok, Tok, Init->Children[I]);
+      else   // 跳过多余元素
+        Tok = skipExcessElement(Tok);
     }
     *Rest = skip(Tok, "}");
     return;

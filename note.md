@@ -2869,3 +2869,19 @@ static Node *initDesigExpr(InitDesig *Desig, Token *Tok) {
 int A[3] = {};
 为空直接加 NULL_EXPR, *还不能跳着赋值*
 
+### 99 跳过数组初始化中多余的元素
+`{ int x[2][3]={{1,2,3,4},{4,5,6}}; x[1][0]; }`
+检查赋值的数量, 超过`ArrayLen`就开始跳过
+```c
+// 跳过多余的元素  保留 "}"
+static Token *skipExcessElement(Token *Tok) {
+  if (equal(Tok, "{")) {
+    Tok = skipExcessElement(Tok->Next);
+    return skip(Tok, "}");
+  }
+
+  // 解析并舍弃多余的元素
+  assign(&Tok, Tok);  // 只解析  不赋值
+  return Tok;
+}
+```
