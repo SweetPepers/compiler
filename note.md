@@ -2899,3 +2899,45 @@ static void stringInitializer(Token **Rest, Token *Tok, Initializer *Init) {
   *Rest = Tok->Next;
 }
 ```
+
+### 101 支持存在在初始化器时省略数组长度
+`int a[]`; 会在声明阶段将 `Ty->Size`标记为-1, 并用`arrayOf`声明一个假的array类型
+根据此在initializer中设置 `init->IsFlexible = true`
+```c
+    if (IsFlexible && Ty->Size < 0) {  // 为啥多个参数IsFlexible?, 因为数组最外层一定不是灵活的
+    // 暂时把IsFlexible 删了也没事  TODO
+      // 设置初始化器为可调整的，之后进行完数组元素数的计算后，再构造初始化器
+      Init->IsFlexible = true;
+      return Init;
+    }
+```
+
+后面进入数组和字符串的构建:
+```c
+// 字符串
+  if (Init->IsFlexible)
+    *Init = *newInitializer(arrayOf(Init->Ty->Base, Tok->Ty->ArrayLen), false);
+// 数组
+  if (Init->IsFlexible) {
+    int Len = countArrayInitElements(Tok, Init->Ty);
+    // 在这里Ty也被重新构造为了数组
+    *Init = *newInitializer(arrayOf(Init->Ty->Base, Len), false);
+  }
+
+// 计算数组初始化元素个数
+static int countArrayInitElements(Token *Tok, Type *Ty) {
+  Initializer *Dummy = newInitializer(Ty->Base, false);
+  // 项数
+  int I = 0;
+
+  // 遍历所有匹配的项
+  for (; !equal(Tok, "}"); I++) {
+    if (I > 0)
+      Tok = skip(Tok, ",");
+    initializer2(&Tok, Tok, Dummy);
+  }
+  return I;
+}
+```
+
+设置`Type **newTy`为了在重新声明时改变原有的类型(原来是-1)
