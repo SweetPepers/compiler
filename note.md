@@ -3000,3 +3000,57 @@ static void unionInitializer(Token **Rest, Token *Tok, Initializer *Init) {
   *Rest = skip(Tok, "}");
 }
 ```
+
+### 105 标量和数组的全局变量初始化器
+能被eval解析的变量
+global-variable = (declarator( "=" GVarinitializer)?)?("," declarator("=" GVarinitializer)?)* ";"  
+存入 `Var->InitData(char *)`
+
+获取全局变量
+```c
+  printLn("  # 获取全局变量%s的地址", Nd->Var->Name);
+  printLn("  la a0, %s", Nd->Var->Name);  // 全局变量存放在符号表中, data段
+```
+按字符串存储, 并按照size写入字符串内容, 内容为实际的值, 注意数组需递归
+```c
+// 临时转换Buf类型对Val进行存储
+static void writeBuf(char *Buf, uint64_t Val, int Sz) {
+  if (Sz == 1)
+    *Buf = Val;
+  else if (Sz == 2)
+    *(uint16_t *)Buf = Val;
+  else if (Sz == 4)
+    *(uint32_t *)Buf = Val;
+  else if (Sz == 8)
+    *(uint64_t *)Buf = Val;
+  else
+    unreachable();
+}
+
+// 对全局变量的初始化器写入数据
+static void writeGVarData(Initializer *Init, Type *Ty, char *Buf, int Offset) {
+  // 处理数组
+  if (Ty->Kind == TY_ARRAY) {
+    int Sz = Ty->Base->Size;
+    for (int I = 0; I < Ty->ArrayLen; I++)
+      writeGVarData(Init->Children[I], Ty->Base, Buf, Offset + Sz * I);
+    return;
+  }
+
+  // 计算常量表达式
+  if (Init->Expr)
+    writeBuf(Buf + Offset, eval(Init->Expr), Ty->Size);
+}
+
+
+// 全局变量在编译时需计算出初始化的值，然后写入.data段。
+static void GVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
+  // 获取到初始化器
+  Initializer *Init = initializer(Rest, Tok, Var->Ty, &Var->Ty);
+
+  // 写入计算过后的数据
+  char *Buf = calloc(1, Var->Ty->Size);
+  writeGVarData(Init, Var->Ty, Buf, 0);
+  Var->InitData = Buf;
+}
+```

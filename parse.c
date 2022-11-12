@@ -89,7 +89,7 @@ static Node *CurrentSwitch;
 // 语法
 // program = (typedef | functionDefinition* | global-variable)*
 // functionDefinition = declarator ("{" compoundStmt | ";" )
-// global-variable = declarator?("," declarator)* ";"
+// global-variable = (declarator( "=" GVarinitializer)?)?("," declarator("=" GVarinitializer)?)* ";"
 // declspec =  ("void" | "_Bool" | "char" | "short" | "int" |"long" 
 //            | "typedef" | | "static"
 //            | "struct" structDecl | "union" unionDecl
@@ -169,9 +169,11 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy);
 static void initializer2(Token **Rest, Token *Tok, Initializer *Init);
 static Initializer *initializer(Token **Rest, Token *Tok, Type *Ty, Type **NewTy);
 static Node *LVarInitializer(Token **Rest, Token *Tok, Obj *Var);
+static void GVarInitializer(Token **Rest, Token *Tok, Obj *Var);
 static Node *stmt(Token **Rest, Token *Tok);
 static Node *exprStmt(Token **Rest, Token *Tok);
 static Node *expr(Token **Rest, Token *Tok);
+static int64_t eval(Node *Nd);
 static int64_t constExpr(Token **Rest, Token *Tok);
 static Node *assign(Token **Rest, Token *Tok);
 static Node *conditional(Token **Rest, Token *Tok);
@@ -1006,6 +1008,48 @@ static Node *LVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
   // 左部为全部清零，右部为需要赋值的部分
   return newBinary(ND_COMMA, LHS, RHS, Tok);
 }
+
+// 临时转换Buf类型对Val进行存储
+static void writeBuf(char *Buf, uint64_t Val, int Sz) {
+  if (Sz == 1)
+    *Buf = Val;
+  else if (Sz == 2)
+    *(uint16_t *)Buf = Val;
+  else if (Sz == 4)
+    *(uint32_t *)Buf = Val;
+  else if (Sz == 8)
+    *(uint64_t *)Buf = Val;
+  else
+    unreachable();
+}
+
+// 对全局变量的初始化器写入数据
+static void writeGVarData(Initializer *Init, Type *Ty, char *Buf, int Offset) {
+  // 处理数组
+  if (Ty->Kind == TY_ARRAY) {
+    int Sz = Ty->Base->Size;
+    for (int I = 0; I < Ty->ArrayLen; I++)
+      writeGVarData(Init->Children[I], Ty->Base, Buf, Offset + Sz * I);
+    return;
+  }
+
+  // 计算常量表达式
+  if (Init->Expr)
+    writeBuf(Buf + Offset, eval(Init->Expr), Ty->Size);
+}
+
+
+// 全局变量在编译时需计算出初始化的值，然后写入.data段。
+static void GVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
+  // 获取到初始化器
+  Initializer *Init = initializer(Rest, Tok, Var->Ty, &Var->Ty);
+
+  // 写入计算过后的数据
+  char *Buf = calloc(1, Var->Ty->Size);
+  writeGVarData(Init, Var->Ty, Buf, 0);
+  Var->InitData = Buf;
+}
+
 
 // 解析语句
 // stmt = "return" expr ";"
@@ -2222,7 +2266,7 @@ static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr) {
 // int
 // a,b[10],*c;
 // 构造全局变量
-// global-variable = declarator?("," declarator)* ";"
+// global-variable = (declarator( "=" GVarinitializer)?)?("," declarator("=" GVarinitializer)?)* ";"
 static Token *globalVariable(Token *Tok, Type *Basety) {
   bool First = true;
 
@@ -2232,7 +2276,9 @@ static Token *globalVariable(Token *Tok, Type *Basety) {
     First = false;
 
     Type *Ty = declarator(&Tok, Tok, Basety);
-    newGVar(getIdent(Ty->Name), Ty);
+    Obj *Var = newGVar(getIdent(Ty->Name), Ty);
+    if (equal(Tok, "="))
+      GVarInitializer(&Tok, Tok->Next, Var);
   }
   return Tok;
 }
