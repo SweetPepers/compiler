@@ -2989,3 +2989,14 @@ static Node *initDesigExpr(InitDesig *Desig, Token *Tok) {
  if (Ty->Kind == TY_STRUCT && !Init->Expr) {
 
 ```
+
+### 104 局部变量的联合union体赋值
+```c
+// unionInitializer = "{" initializer "}"
+static void unionInitializer(Token **Rest, Token *Tok, Initializer *Init) {
+  // CRUX联合体只接受第一个成员用来初始化, 另外也只接受一个
+  Tok = skip(Tok, "{");
+  initializer2(&Tok, Tok, Init->Children[0]); 
+  *Rest = skip(Tok, "}");
+}
+```
