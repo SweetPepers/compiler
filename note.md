@@ -2941,3 +2941,33 @@ static int countArrayInitElements(Token *Tok, Type *Ty) {
 ```
 
 设置`Type **newTy`为了在重新声明时改变原有的类型(原来是-1)
+
+### 102 为局部变量处理结构体初始化 TODO
+本质上还是转换为一一对应的ASSIGN语句
+- rvcc.h : 添加 `Member::Idx;`  这个Idx主要是对应哪个init
+- parse.c
+
+```c
+// 指派的左值生成
+// 指派初始化表达式 左值
+static Node *initDesigExpr(InitDesig *Desig, Token *Tok) {
+  // 返回Desig中的变量
+  if (Desig->Var)
+    return newVarNode(Desig->Var, Tok);  // // 最终在这里停止递归
+  // 返回Desig中的成员变量
+  if (Desig->Mem) {
+    Node *Nd = newUnary(ND_MEMBER, initDesigExpr(Desig->Next, Tok), Tok);  // struct_a.b, 计算的是 struct_a 的地址
+    Nd->Mem = Desig->Mem;
+    return Nd;
+  }
+
+  // 需要赋值的变量名
+  // 递归到次外层Desig，有此时最外层有Desig->Var 或者 Desig->Mem
+  // 然后逐层计算偏移量
+  Node *LHS = initDesigExpr(Desig->Next, Tok);
+  // 偏移量
+  Node *RHS = newNum(Desig->Idx, Tok);
+  // 返回偏移后的变量地址
+  return newUnary(ND_DEREF, newAdd(LHS, RHS, Tok), Tok);  *(a + offset*baseSize)
+}
+```
