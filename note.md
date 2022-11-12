@@ -2971,3 +2971,21 @@ static Node *initDesigExpr(InitDesig *Desig, Token *Tok) {
   return newUnary(ND_DEREF, newAdd(LHS, RHS, Tok), Tok);  *(a + offset*baseSize)
 }
 ```
+
+### 103 初始化结构体时可使用其他结构体
+```c
+// initializer2() , 在初始化器阶段就赋值了, 所以后面不用赋值了
+  if (Init->Ty->Kind == TY_STRUCT) {
+    // 匹配使用其他结构体来赋值，其他结构体需要先被解析过
+    if (!equal(Tok, "{")) {   // T a = b;
+      Node *Expr = assign(Rest, Tok);
+      addType(Expr);
+      if (Expr->Ty->Kind == TY_STRUCT) {
+        Init->Expr = Expr;
+        return;
+      }
+    }
+// createLVarInit()
+ if (Ty->Kind == TY_STRUCT && !Init->Expr) {
+
+```
