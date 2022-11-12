@@ -3002,6 +3002,7 @@ static void unionInitializer(Token **Rest, Token *Tok, Initializer *Init) {
 ```
 
 ### 105 标量和数组的全局变量初始化器
+// TODO 字符串初始化
 能被eval解析的变量
 global-variable = (declarator( "=" GVarinitializer)?)?("," declarator("=" GVarinitializer)?)* ";"  
 存入 `Var->InitData(char *)`
@@ -3054,3 +3055,17 @@ static void GVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
   Var->InitData = Buf;
 }
 ```
+
+### 107 结构体的全局变量初始化
+
+全局变量初始化  就是把数组按照顺序写出来即可
+```c
+  if (Ty->Kind == TY_STRUCT) {
+    for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next)
+      writeGVarData(Init->Children[Mem->Idx], Mem->Ty, Buf,
+                    Offset + Mem->Offset);
+    return;
+  }
+```
+
+
