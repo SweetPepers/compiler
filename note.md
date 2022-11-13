@@ -3069,3 +3069,137 @@ static void GVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
 ```
 
 
+### 108 全局变量初始化重构, 联合体初始化
+字符串的全局变量为让当前变量指向一个已有变量的指针, relocate
+全局变量靠一个链表结构维持, 而每个全局变量中有一个relocate链表, 通过其中的offset判断链表中的数据属于当前全局变量中的哪一个成员  
+```c
+// 全局变量可被 常量表达式 或者 指向其他全局变量的指针 初始化。
+// 此结构体用于 指向其他全局变量的指针 的情况。
+typedef struct Relocation Relocation;
+struct Relocation {
+  Relocation *Next; // 下一个
+  int Offset;       // 偏移量
+  char *Label;      // 标签名
+  long Addend;      // 加数
+};
+```
+**TODO** : 其中的变量 数组 结构体  地址 等部分
+
+eval部分, eval为编译阶段可算出的常量表达式, `"="`右边的内容
+```c
+int64_t eval(Node *Nd) { return eval2(Nd, NULL); } // 只能含有数字的常量表达式
+
+// 常量表达式可以是数字或者是 ptr±n，ptr是指向全局变量的指针，n是偏移量。
+int64_t eval2(Node *Nd, char **Label)// 此时常量表达式中可含有指针内容
+// 可含有指针内容的表达式为:
+  case ND_ADD:
+    return eval2(Nd->LHS, Label) + eval(Nd->RHS);
+  case ND_SUB:
+    return eval2(Nd->LHS, Label) - eval(Nd->RHS);
+  case ND_COND:
+    return eval(Nd->Cond) ? eval2(Nd->Then, Label) : eval2(Nd->Els, Label);
+  case ND_COMMA:
+    return eval2(Nd->RHS, Label);
+  case ND_CAST: 
+    int64_t Val = eval2(Nd->LHS, Label);
+
+  // 也可解析地址类变量, 比如, 常规全局变量的地址, 数组 函数等
+  case ND_ADDR:
+    return evalRVal(Nd->LHS, Label);
+  case ND_MEMBER:
+    // 未开辟Label的地址，则表明不是表达式常量
+    if (!Label)
+      errorTok(Nd->Tok, "not a compile-time constant");
+    // 不能为数组  TODO
+    if (Nd->Ty->Kind != TY_ARRAY)
+      errorTok(Nd->Tok, "invalid initializer");
+    // 返回左部的值（并解析Label），加上成员变量的偏移量
+    return evalRVal(Nd->LHS, Label) + Nd->Mem->Offset;
+  case ND_VAR:
+    // 未开辟Label的地址，则表明不是表达式常量
+    if (!Label)
+      errorTok(Nd->Tok, "not a compile-time constant");
+    // 必须为数组或者函数
+    if (Nd->Var->Ty->Kind != TY_ARRAY && Nd->Var->Ty->Kind != TY_FUNC)
+      errorTok(Nd->Tok, "invalid initializer");
+    *Label = Nd->Var->Name;
+    return 0;
+
+// 计算重定位变量, return offset  返回的一个偏移量, 基址通过label寻找
+static int64_t evalRVal(Node *Nd, char **Label) {
+  switch (Nd->Kind) {
+  case ND_VAR:
+    // 局部变量不能参与全局变量的初始化
+    if (Nd->Var->IsLocal)
+      errorTok(Nd->Tok, "not a compile-time constant");
+    *Label = Nd->Var->Name;
+    return 0;
+  case ND_DEREF:
+    // 直接进入到解引用的地址
+    return eval2(Nd->LHS, Label);
+  case ND_MEMBER:
+    // 加上成员变量的偏移量
+    return evalRVal(Nd->LHS, Label) + Nd->Mem->Offset;
+  default:
+    break;
+  }
+
+  errorTok(Nd->Tok, "invalid initializer");
+  return -1;
+}
+```
+
+全局变量数据写入 `writeGVarData()`: 找到label直接存入链表结构
+```c
+
+  // 预设使用到的 其他全局变量的名称
+  char *Label = NULL;
+  uint64_t Val = eval2(Init->Expr, &Label);
+
+  // 如果不存在Label，说明可以直接计算常量表达式的值
+  if (!Label) {
+    // 计算常量表达式
+    writeBuf(Buf + Offset, Val, Ty->Size);
+    return Cur;
+  }else{  
+    // 存在Label，则表示使用了其他全局变量
+    Relocation *Rel = calloc(1, sizeof(Relocation));
+    Rel->Offset = Offset;
+    Rel->Label = Label;
+    Rel->Addend = Val;
+    // 压入链表顶部
+    Cur->Next = Rel;
+    return Cur->Next;
+  }
+  
+```
+
+通过其中的offset判断链表中的数据属于当前全局变量中的哪一个成员  
+
+```c
+if (Var->InitData) { // 初始化了
+  printLn("%s:", Var->Name);
+  // 打印出字符串的内容，包括转义字符
+  Relocation *Rel = Var->Rel;
+  int Pos = 0;
+  while (Pos < Var->Ty->Size) {
+    if (Rel && Rel->Offset == Pos) {
+      // 使用其他变量进行初始化
+      printLn("  # %s全局变量", Var->Name);
+      printLn("  .quad %s%+ld", Rel->Label, Rel->Addend);
+      Rel = Rel->Next;
+      Pos += 8;
+    } else {
+      // 打印出字符串的内容，包括转义字符
+      printLn("  # 字符串字面量");
+      char C = Var->InitData[Pos++];
+      if (isprint(C))
+        printLn("  .byte %d\t# %c", C, C);
+      else
+        printLn("  .byte %d", C);
+    }
+  }
+}
+```
+
+ps : 果然没人关心union怎么做的
