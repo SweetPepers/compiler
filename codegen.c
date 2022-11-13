@@ -666,10 +666,12 @@ static void emitData(Obj *Prog) {
     if (Var->IsFunction )
       continue;
 
-    printLn("  # 数据段标签");
-    printLn("  .data");
+    printLn("  # 全局段%s", Var->Name);
+    printLn("  .global %s", Var->Name);
     // 判断是否有初始值
     if (Var->InitData) {
+      printLn("\n  # 数据段标签");
+      printLn("  .data");
       printLn("%s:", Var->Name);
       // 打印出字符串的内容，包括转义字符
       Relocation *Rel = Var->Rel;
@@ -692,8 +694,9 @@ static void emitData(Obj *Prog) {
         }
       }
     } else {
-      printLn("  # 全局段%s", Var->Name);
-      printLn("  .globl %s", Var->Name);
+      // bss段未给数据分配空间，只记录数据所需空间的大小
+      printLn("  # 未初始化的全局变量");
+      printLn("  .bss");
       printLn("%s:", Var->Name);
       printLn("  # 全局变量零填充%d位", Var->Ty->Size);
       printLn("  .zero %d", Var->Ty->Size);

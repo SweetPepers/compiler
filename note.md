@@ -3276,3 +3276,21 @@ static int countArrayInitElements(Token *Tok, Type *Ty) {
   return I;
 }
 ```
+
+
+### 111 未初始化的全局变量存入bss段
+```armasm
+# 初始化的数据
+  .global
+  .data
+s: 
+  .byte %d
+/ .quad %d+%ld
+
+# 未初始化的数据
+  .global
+  .bss
+s: 
+  .zero %d
+```
+
