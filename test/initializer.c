@@ -7,6 +7,7 @@ int g5 = 5;
 long g6 = 6;
 int garr[3] = {1,2,3};
 // char* gstr = "abc";
+// char gerr = g3;
 
 // [106] 为结构体支持全局变量初始化器
 int g9[3] = {0, 1, 2};
@@ -36,6 +37,10 @@ union { int a; char b[8]; } g13_2[2] = {0x01020304, 0x05060708};
 struct {int a[2];} g40[2] = {{1, 2}, 3, 4};
 struct {int a[2];} g41[2] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 char g43[][4] = {'f', 'o', 'o', 0, 'b', 'a', 'r', 0};
+
+
+// [109] 允许标量初始化时有多余的大括号
+char *g44 = {"foo"};
 
 
 
@@ -199,6 +204,11 @@ int main() {
 
   ASSERT(0, strcmp(g43[0], "foo"));
   ASSERT(0, strcmp(g43[1], "bar"));
+
+  // [109] 允许标量初始化时有多余的大括号
+  ASSERT(0, strcmp(g44, "foo"));
+  int a_109 = 1;
+  ASSERT( 1, ({int b = {a_109}; b;}));
 
   printf("OK\n");
   return 0;

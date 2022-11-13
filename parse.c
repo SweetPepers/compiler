@@ -954,6 +954,13 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init) {
     unionInitializer(Rest, Tok, Init);
     return;
   }
+  // 不需要{}的类型加了{}
+  // 处理标量外的大括号，例如：int x = {3};
+  if (equal(Tok, "{")) {
+    initializer2(&Tok, Tok->Next, Init);
+    *Rest = skip(Tok, "}");
+    return;
+  }
 
   // assign
   // 为节点存储对应的表达式

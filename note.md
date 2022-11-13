@@ -3228,3 +3228,21 @@ static Initializer *initializer(Token **Rest, Token *Tok, Type *Ty, Type **NewTy
   return Init;
 }
 ```
+
+### 109 允许初始化时有无关的大括号
+CRUX 
+> 在C语言中，枚举类型、字符型和各种整数的表示形式统一叫做标量类型。
+> 
+> 当在C表达式中使用标量类型的值时，编译器就会自动将这些标识符转换为整数保存。
+> 
+> 这种机制的作用是，在这些标量类型上执行的操作与整型上执行的操作完全一样。
+
+初始化器中非数组 结构体等类型却出现了 `{}` 就直接跳过
+```c
+  // 处理标量外的大括号，例如：int x = {3};
+  if (equal(Tok, "{")) {
+    initializer2(&Tok, Tok->Next, Init);
+    *Rest = skip(Tok, "}");
+    return;
+  }
+```
