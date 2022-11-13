@@ -2046,8 +2046,16 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty) {
       Mem->Name = Mem->Ty->Name;
       Mem->Idx = Idx++;
       Cur = Cur->Next = Mem;
+      if (Mem->Ty->Kind == TY_ARRAY && Mem->Ty->ArrayLen < 0 && !equal(Tok, ";"))
+        errorTok(Tok, "flexible array member not at end of struct");
+      // 灵活数组必须放在最后
+      // // 解析灵活数组成员，数组大小设为0
+      // if (Cur != &Head && Cur->Ty->Kind == TY_ARRAY && Cur->Ty->ArrayLen < 0)
+      //   Cur->Ty = arrayOf(Cur->Ty->Base, 0);
     }
   }
+  if (Cur != &Head && Cur->Ty->Kind == TY_ARRAY && Cur->Ty->ArrayLen < 0)
+    Cur->Ty = arrayOf(Cur->Ty->Base, 0);
 
   *Rest = Tok->Next;
   Ty->Mems = Head.Next;

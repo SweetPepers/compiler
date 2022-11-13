@@ -216,6 +216,10 @@ int main() {
   ASSERT(1, ({ union {int a; char b;} x={1,}; x.a; }));
   ASSERT(2, ({ enum {x,y,z,}; z; }));
 
+  // [112] 支持灵活数组成员
+  ASSERT(4, sizeof(struct { int x, y[]; }));
+  // ASSERT(8, sizeof(struct { int y[], x; int c;}));
+
   printf("OK\n");
   return 0;
 }

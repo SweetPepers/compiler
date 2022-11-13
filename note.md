@@ -3294,3 +3294,35 @@ s:
   .zero %d
 ```
 
+### 112 支持灵活数组成员
+`struct a{ int x, y[]; }` 
+因为 `y[]`的len会被设置为-1, 导致 `sizeof(a)` = 4 + 4*-1 = 0
+所以要把结构体中的y[]的len设置为0;
+
+CRUX 灵活数组必须放到结构体最后面  
+```
+root@DESKTOP-9N8RNGB:/mnt/d/PROJECT/rvcc# gcc testdemo.c -o t.exe
+testdemo.c: In function ‘main’:
+testdemo.c:4:19: error: flexible array member not at end of struct
+```
+
+CRUX : 为什么不做修改 `ASSERT(8, sizeof(struct { int y[], x; int c;}));`的结果仍然正确?  
+第一个成员结束后, offset的值为-4, 但是-4会被对齐到0, 实际达到了灵活数组不占位置的效果  
+int(-1/4) = 0  舍入为向0舍入, 而不是向低舍入  
+```c
+  int Offset = 0;
+  for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+    Offset = alignTo(Offset, Mem->Ty->Align);
+    Mem->Offset = Offset;
+    Offset += Mem->Ty->Size;
+    // struct的默认对齐为1, 存在member则为member中的最大对齐
+    if (Ty->Align < Mem->Ty->Align)
+      Ty->Align = Mem->Ty->Align;
+  }
+
+int alignTo(int N, int Align) {
+  // (0,Align]返回Align
+  return (N + Align - 1) / Align * Align;
+}
+
+```
