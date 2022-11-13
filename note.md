@@ -3056,7 +3056,7 @@ static void GVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
 }
 ```
 
-### 107 结构体的全局变量初始化
+### 106 结构体的全局变量初始化
 
 全局变量初始化  就是把数组按照顺序写出来即可
 ```c
@@ -3069,7 +3069,7 @@ static void GVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
 ```
 
 
-### 108 全局变量初始化重构, 联合体初始化
+### 107 全局变量初始化重构, 联合体初始化
 字符串的全局变量为让当前变量指向一个已有变量的指针, relocate
 全局变量靠一个链表结构维持, 而每个全局变量中有一个relocate链表, 通过其中的offset判断链表中的数据属于当前全局变量中的哪一个成员  
 ```c
@@ -3203,3 +3203,28 @@ if (Var->InitData) { // 初始化了
 ```
 
 ps : 果然没人关心union怎么做的
+
+### 108 允许省略初始化器内的括号
+`arrayInitializer2()`  
+`structInitializer2()`  
+与` 1 `  的区别就是要求有不有`"{"`  
+```c
+struct {int a[2];} g41[2] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+char g43[][4] = {'f', 'o', 'o', 0, 'b', 'a', 'r', 0};
+```
+CRUX: 怎么跳过多余元素?  
+initializer是根据var->type构建的, 而不是根据{}中内容构建  
+initializer2给init->expr赋值  
+因为一开始必含有一个`"{"`, 所以最开始的构建init必定调用的含有`skipExcessElement()`最后跳过多余元素
+```c
+// 初始化器
+static Initializer *initializer(Token **Rest, Token *Tok, Type *Ty, Type **NewTy) {
+  // 新建一个解析了类型的初始化器
+  Initializer *Init = newInitializer(Ty, true);
+  // 解析需要赋值到Init中
+  initializer2(Rest, Tok, Init);
+    // 将新类型传回变量
+  *NewTy = Init->Ty;
+  return Init;
+}
+```
