@@ -3246,3 +3246,33 @@ CRUX
     return;
   }
 ```
+
+### 110 允许枚举类型或初始化器有无关的逗号
+下面这种
+```c
+enum {x,y,z,};
+int a[]={1,2,3,};
+// enumList = ident ("=" constExpr)? ("," ident ("=" constExpr)?)* ","?
+// arrayInitializer1 = "{" initializer ("," initializer)* ","? "}"
+// arrayIntializer2 = initializer ("," initializer)* ","?
+// structInitializer1 = "{" initializer ("," initializer)* ","? "}"
+// structIntializer2 = initializer ("," initializer)* ","?
+// unionInitializer = "{" initializer ","? "}" 
+```
+CRUX : 这里用isEnd是否可以?   暂时没问题
+```c
+// 计算数组初始化元素个数
+static int countArrayInitElements(Token *Tok, Type *Ty) {
+  Initializer *Dummy = newInitializer(Ty->Base, false);
+  // 项数
+  int I = 0;
+
+  // 遍历所有匹配的项  此时的 &Tok是个假的, 形参
+  for (; !consumeEnd(&Tok, Tok); I++) {  // 这里不能用 isEnd
+    if (I > 0)
+      Tok = skip(Tok, ",");
+    initializer2(&Tok, Tok, Dummy);
+  }
+  return I;
+}
+```
