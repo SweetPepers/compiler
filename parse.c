@@ -100,7 +100,7 @@ static Node *CurrentSwitch;
 // declarator = "*"* ( "(" declarator ")" | ident ) typeSuffix
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
 // arrayDimensions = constExpr? "]" typeSuffix
-// funcParams = (param ("," param)*)? ")"
+// funcParams = ("void" | param ("," param)*)? ")"
 // param = declspec declarator
 // compoundStmt = (typedef | declaration | stmt)* "}"
 // declaration = declspec (declarator ("=" initializer)? ("," declarator ("=" initializer)?)*)? ";"
@@ -727,9 +727,17 @@ static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty) {
   return Ty;
 }
 
-// funcParams = (param ("," param)*)? ")"
+// funcParams = ("void" | param ("," param)*)? ")"
 // param = declspec declarator
 static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
+  // 封装一个函数节点
+  Ty = funcType(Ty);
+  // "void"
+  if (equal(Tok, "void") && equal(Tok->Next, ")")){
+    *Rest = Tok->Next->Next;
+    return Ty;
+  }
+
   Type Head = {};
   Type *Cur = &Head;
 
@@ -753,8 +761,7 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
     Cur = Cur->Next;
   }
 
-  // 封装一个函数节点
-  Ty = funcType(Ty);
+
   // 传递形参
   Ty->Params = Head.Next;
   *Rest = Tok->Next;

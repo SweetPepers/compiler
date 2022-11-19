@@ -1,6 +1,6 @@
 #include "test.h"
 
-int ret3() {
+int ret3(void) {  // [114] 支持void作为形参
   return 3;
   return 5;
 }
@@ -44,7 +44,7 @@ int sub_short(short a, short b, short c) {
 // [70] 处理返回类型转换
 int g1;
 
-int *g1_ptr() { return &g1; }
+int *g1_ptr(void) { return &g1; } // [114] 支持void作为形参
 char int_to_char(int x) { return x; }
 
 // {71] 处理函数实参类型转换

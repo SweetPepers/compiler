@@ -3372,3 +3372,15 @@ Mem->Ty = Init->Children[Mem->Idx]->Ty;  // 此时mem为灵活结构体中的最
 // 增加结构体的类型大小
 Ty->Size += Mem->Ty->Size;
 ```
+
+### 114 支持void作为形参
+// funcParams = ("void" | param ("," param)*)? ")"
+
+funcParams, 相比正常的参数解析, 就是没有任何参数的函数 `int ret()` 等价于 `int ret(void)`
+```c
+  // "void"
+  if (equal(Tok, "void") && equal(Tok, ")")){
+    *Rest = Tok->Next->Next;
+    return funcType(Ty);
+  }
+```
