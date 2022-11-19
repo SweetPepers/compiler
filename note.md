@@ -3384,3 +3384,9 @@ funcParams, 相比正常的参数解析, 就是没有任何参数的函数 `int 
     return funcType(Ty);
   }
 ```
+
+### 115 对齐全局变量
+在每个全局变量前打印:  
+`printLn("  .align %d", (int)log2(Var->Ty->Align));`  
+
+编译前链接上math库, -lm
