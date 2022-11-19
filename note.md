@@ -3390,3 +3390,10 @@ funcParams, 相比正常的参数解析, 就是没有任何参数的函数 `int 
 `printLn("  .align %d", (int)log2(Var->Ty->Align));`  
 
 编译前链接上math库, -lm
+
+### 116 extern
+主要为`Obj::IsDefinition`, 除了函数, 全局变量也会使用这个成员, 如果有extern则将其赋值为false  
+VarAttr中添加 IsExtern, 处理方式与static相同  
+同时更改globalVariable()接口: `Token *globalVariable(Token *Tok, Type *Basety, VarAttr *Attr)`
+
+代码生成中, 对未定义的全局变量不处理, 直接跳过
