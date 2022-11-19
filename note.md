@@ -2942,7 +2942,7 @@ static int countArrayInitElements(Token *Tok, Type *Ty) {
 
 设置`Type **newTy`为了在重新声明时改变原有的类型(原来是-1)
 
-### 102 为局部变量处理结构体初始化 TODO
+### 102 为局部变量处理结构体初始化 
 本质上还是转换为一一对应的ASSIGN语句
 - rvcc.h : 添加 `Member::Idx;`  这个Idx主要是对应哪个init
 - parse.c
@@ -3299,7 +3299,7 @@ s:
 因为 `y[]`的len会被设置为-1, 导致 `sizeof(a)` = 4 + 4*-1 = 0
 所以要把结构体中的y[]的len设置为0;
 
-CRUX 灵活数组必须放到结构体最后面  
+**CRUX 灵活数组必须放到结构体最后面**
 ```
 root@DESKTOP-9N8RNGB:/mnt/d/PROJECT/rvcc# gcc testdemo.c -o t.exe
 testdemo.c: In function ‘main’:
@@ -3325,4 +3325,50 @@ int alignTo(int N, int Align) {
   return (N + Align - 1) / Align * Align;
 }
 
+```
+
+### 113 初始化灵活数组成员
+
+添加 `Type::isFlexible` // 结构体或联合体使用  
+如果结构体(联合体)的最后一个成员为灵活数组, 则结构体的`Ty->siFlexible = true`
+
+- parse  
+因为在上一节中将结构体中的灵活数组成员的大小改为了0, 导致递归构建成员初始化器时无法识别为灵活数组, 会按照正常数组构建初始化器:
+```c
+// newInitializer():
+  // 处理数组类型
+  if (Ty->Kind == TY_ARRAY) {
+    // 判断是否需要调整数组元素数并且数组不完整
+    if (IsFlexible && Ty->Size < 0) {
+      // 设置初始化器为可调整的，之后进行完数组元素数的计算后，再构造初始化器
+      Init->IsFlexible = true;
+      return Init;
+    }
+    // ...
+
+// 所以要在结构体的初始化器中检查最后一个成员, 直接给其做好初始化器
+// 遍历子项进行赋值
+for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next){
+  // 判断结构体是否是灵活的，同时成员也是灵活的并且是最后一个
+  // 在这里直接构造，避免对于灵活数组的解析
+  if (IsFlexible && Ty->IsFlexible && !Mem->Next) {
+    Initializer *Child = calloc(1, sizeof(Initializer));
+    Child->Ty = Mem->Ty;
+    Child->IsFlexible = true;
+    Init->Children[Mem->Idx] = Child;
+  } else {
+    // 对非灵活子项进行赋值
+    Init->Children[Mem->Idx] = newInitializer(Mem->Ty, false);
+  }
+}
+```
+
+**不复制的化, sizeof结果错误CRUX**  
+原Ty指向声明结构体时产生的类型, 一个灵活结构体的每个`entity`的大小都不相同, 不能在原Ty上作修改, 新的类型为独立于原类型存在的类型, 所以要`copyStructType()`  
+`Init->Children[Mem->Idx]` 中存储了调用了`countArrayInitElements()`的实际数组长度, 要对原类型覆盖, 并更改结构体的大小  
+```c
+// 灵活数组类型替换为实际的数组类型
+Mem->Ty = Init->Children[Mem->Idx]->Ty;  // 此时mem为灵活结构体中的最后一个成员
+// 增加结构体的类型大小
+Ty->Size += Mem->Ty->Size;
 ```

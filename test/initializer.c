@@ -42,6 +42,15 @@ char g43[][4] = {'f', 'o', 'o', 0, 'b', 'a', 'r', 0};
 // [109] 允许标量初始化时有多余的大括号
 char *g44 = {"foo"};
 
+// [113] 支持初始化结构体灵活数组成员
+typedef char T60[];
+T60 g60 = {1, 2, 3};
+T60 g61 = {1, 2, 3, 4, 5, 6};
+
+typedef struct {char a, b[];} T65;
+T65 g65 = {'f', 'o', 'o', 0};
+T65 g66 = {'f', 'o', 'o', 'b', 'a', 'r', 0};
+
 
 
 
@@ -219,6 +228,16 @@ int main() {
   // [112] 支持灵活数组成员
   ASSERT(4, sizeof(struct { int x, y[]; }));
   // ASSERT(8, sizeof(struct { int y[], x; int c;}));
+
+  // [113] 支持初始化结构体灵活数组成员
+  ASSERT(3, sizeof(g60));
+  ASSERT(6, sizeof(g61));
+
+  ASSERT(4, sizeof(g65));
+  ASSERT(7, sizeof(g66));
+  ASSERT('f', g65.a);
+  ASSERT(0, strcmp(g65.b, "oo"));
+  ASSERT(0, strcmp(g66.b, "oobar"));
 
   printf("OK\n");
   return 0;
