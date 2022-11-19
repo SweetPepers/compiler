@@ -205,6 +205,9 @@ static Node *postfix(Token **Rest, Token *Tok);
 static Node *primary(Token **Rest, Token *Tok);
 static Node *funCall(Token **Rest, Token *Tok);
 static Token *parseTypedef(Token *Tok, Type *BaseTy);
+static bool isFunction(Token *Tok);
+static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr);
+static Token *globalVariable(Token *Tok, Type *Basety, VarAttr *Attr);
 
 // 进入域
 static void enterScope(void) {
@@ -1458,7 +1461,7 @@ static Node *stmt(Token **Rest, Token *Tok) {
 }
 
 // 解析复合语句
-// compoundStmt = (typedef | declaration | stmt)* "}"
+// compoundStmt = (typedef | extern | declaration | stmt)* "}"
 static Node *compoundStmt(Token **Rest, Token *Tok) {
   // 这里使用了和词法分析类似的单向链表结构
   Node *Nd = newNode(ND_BLOCK, Tok);  // 存储这里的tok
@@ -1477,6 +1480,18 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
       // 解析typedef的语句
       if(Attr.IsTypedef){
         Tok = parseTypedef(Tok, BaseTy);
+        continue;
+      }
+
+      // 解析函数
+      if (isFunction(Tok)) {
+        Tok = function(Tok, BaseTy, &Attr);
+        continue;
+      }
+
+      // 解析外部全局变量
+      if (Attr.IsExtern) {
+        Tok = globalVariable(Tok, BaseTy, &Attr);
         continue;
       }
 

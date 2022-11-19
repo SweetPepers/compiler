@@ -3397,3 +3397,27 @@ VarAttr中添加 IsExtern, 处理方式与static相同
 同时更改globalVariable()接口: `Token *globalVariable(Token *Tok, Type *Basety, VarAttr *Attr)`
 
 代码生成中, 对未定义的全局变量不处理, 直接跳过
+
+extern 修饰函数时, 暂时只做了表示, 啥也没干
+
+### 117 处理块中的extern
+在compoundStmt 仿照typedef处理
+```c
+  // 解析typedef的语句
+  if(Attr.IsTypedef){
+    Tok = parseTypedef(Tok, BaseTy);
+    continue;
+  }
+
+  // 解析函数
+  if (isFunction(Tok)) {
+    Tok = function(Tok, BaseTy, &Attr);
+    continue;
+  }
+
+  // 解析外部全局变量
+  if (Attr.IsExtern) {
+    Tok = globalVariable(Tok, BaseTy, &Attr);
+    continue;
+  }
+```
