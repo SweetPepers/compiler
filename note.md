@@ -3462,3 +3462,8 @@ typedef struct {
 同时 `declaration()`中添加了 `VarAttr* Attr`参数, 但只有原本的compoundstmt需要传入
 
 其他就是对齐默认值为type的align, 如果Attr存在 则改为Attr中的对齐  
+
+
+### 119 支持对变量使用_Alignof
+"_Alignof" unary   
+类型sizeof, 返回类型的align (TODO 那设置过对齐的变量参与的表达式呢)  
