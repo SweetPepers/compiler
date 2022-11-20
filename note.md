@@ -3540,3 +3540,8 @@ static Node *postfix(Token **Rest, Token *Tok) {
 
 构建语法树时 看一下 ";"  
 啥也不干, 判断下LHS有没有
+
+### 123 支持静态全局变量
+根据Attr 给全局变量的isStatic赋值
+
+生成代码时 判断一下 打印 `.global`还是`.local`

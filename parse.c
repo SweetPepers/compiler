@@ -400,6 +400,7 @@ static Obj *newLVar(char *Name, Type *Ty) {
 static Obj *newGVar(char *Name, Type *Ty) {
   Obj *Var = newVar(Name, Ty);
   Var->Next = Globals;
+  Var->IsStatic = false;
   // 存在定义
   Var->IsDefinition = true;
   Globals = Var;
@@ -2631,6 +2632,8 @@ static Token *globalVariable(Token *Tok, Type *Basety, VarAttr *Attr) {
     // 若有设置，则覆盖全局变量的对齐值
     if (Attr->Align)
       Var->Align = Attr->Align;
+    // 是否有static
+    Var->IsStatic = Attr->IsStatic;
     // 是否具有定义
     Var->IsDefinition = !Attr->IsExtern;
     if (equal(Tok, "="))
