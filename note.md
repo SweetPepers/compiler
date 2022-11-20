@@ -3534,3 +3534,9 @@ static Node *postfix(Token **Rest, Token *Tok) {
 // ...
 }
 ```
+
+### 122 允许返回空语句 return;
+// stmt = "return" expr? ";"
+
+构建语法树时 看一下 ";"  
+啥也不干, 判断下LHS有没有

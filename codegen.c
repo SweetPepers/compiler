@@ -539,7 +539,9 @@ static void genStmt(Node *Nd) {
       genStmt(Nd->LHS);
       return;
     case ND_RETURN:
-      genExpr(Nd->LHS);
+      // 不为空返回语句时
+      if(Nd->LHS)
+        genExpr(Nd->LHS);
       // 无条件跳转语句，跳转到.L.return段
       // j offset是 jal x0, offset的别名指令
       printLn("  # 跳转到.L.return.%s段", CurrentFn->Name);
