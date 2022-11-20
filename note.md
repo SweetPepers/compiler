@@ -3467,3 +3467,19 @@ typedef struct {
 ### 119 支持对变量使用_Alignof
 "_Alignof" unary   
 类型sizeof, 返回类型的align (TODO 那设置过对齐的变量参与的表达式呢)  
+
+### 120 静态局部变量 
+**CRUX只能通过某个局部变量找到的全局变量**  
+
+
+变量通过变量域查找, 变量域中的名字和变量的实际名字可以不一样, 变量与中存储着定义时的名字, 且存储在当时局部变量的域中,而非最外层的全局变量域
+```c
+if (Attr && Attr->IsStatic) {
+  // 静态局部变量
+  Obj *Var = newAnonGVar(Ty);
+  pushScope(getIdent(Ty->Name))->Var = Var;
+  if (equal(Tok, "="))
+    GVarInitializer(&Tok, Tok->Next, Var);
+  continue;
+}
+```
