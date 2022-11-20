@@ -3593,3 +3593,13 @@ ND_FUNCALL:
 
   // 原本是直接 call funcName 
 ```
+
+### 126 支持函数调用返回短整数
+- codegen.c
+ND_FUNCALL
+
+`Nd->Ty`中存储了`returnTy`
+根据returnTy 对结果(a0寄存器)进行相应的移位高位置0
+
+CRUX: 不同文件中的函数的返回值可以不一样, funcall只是单纯的根据函数名找, 即汇编代码只有  `call funcName`  
+如果编译器没有相应的检查就不会报错, 会按照自己定义时的格式执行下去
