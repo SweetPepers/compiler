@@ -89,6 +89,7 @@ struct Obj {
   char *Name;      // 变量名
   Type *Ty;        // 变量类型
   bool IsLocal;    // 局部变量还是全局变量
+  int Align;       // 对齐量
 
   // 局部变量
   int Offset;      // fp的偏移量
@@ -258,6 +259,7 @@ struct Member {
   Token *Tok;   // 报错信息
   Token *Name;  // 名称
   int Idx;      // 索引值
+  int Align;    // 对齐量
   int Offset;   // 偏移量
 };
 

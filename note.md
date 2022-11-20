@@ -3421,3 +3421,44 @@ extern 修饰函数时, 暂时只做了表示, 啥也没干
     continue;
   }
 ```
+
+
+### makefile  cmakelist
+
+### 支持_Alignof和_Aligns
+变量的对其要求与类型独立, `Obj::Align`  
+```c
+// declspec =  ("void" | "_Bool" | "char" | "short" | "int" |"long" 
+//            | "typedef" | "static" | "extern"
+//            | "_Alignas" ("(" typename | constExpr ")")
+//            | "struct" structDecl | "union" unionDecl
+//            | "enum" enumSpecifier)+
+// primary = "(" "{" stmt+ "}" ")"
+//         | "(" expr ")"
+//         | "sizeof" "(" typeName ")"
+//         | "sizeof" unary
+//         | "_Alignof" "(" typeName ")"
+//         | ident funcArgs?
+//         | str
+//         | num
+
+// 用法:
+int _Alignas(512) g2;
+_Alignas(long) char x
+// _Alignof 用法与 sizeof相同 返回type的对齐要求
+```
+
+align在declspec中解析, 与 `"typedef" | "static" | "extern"` 一同存在 Attr中
+```c
+// 变量属性
+typedef struct {
+  bool IsTypedef; // 是否为类型别名
+  bool IsStatic;  // 是否为文件域内
+  bool IsExtern;  // 是否为外部变量
+  int Align;      // 对齐量
+} VarAttr;
+```
+
+同时 `declaration()`中添加了 `VarAttr* Attr`参数, 但只有原本的compoundstmt需要传入
+
+其他就是对齐默认值为type的align, 如果Attr存在 则改为Attr中的对齐  
