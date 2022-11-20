@@ -3572,3 +3572,24 @@ case ND_DO: {
   return;
 }
 ```
+
+### 125 对齐栈帧到16字节的边界
+TODO:WHY?
+一个栈由16字节对齐起始, 16字节对齐结束 <==> 函数的栈 的 align = 16
+ND_FUNCALL:
+
+```c
+  if (Depth % 2 == 0) {
+    // 偶数深度，sp已经对齐16字节
+    printLn("  # 调用%s函数", Nd->FuncName);
+    printLn("  call %s", Nd->FuncName);
+  } else {
+    // 对齐sp到16字节的边界
+    printLn("  # 对齐sp到16字节的边界，并调用%s函数", Nd->FuncName);
+    printLn("  addi sp, sp, -8");
+    printLn("  call %s", Nd->FuncName);
+    printLn("  addi sp, sp, 8");
+  }
+
+  // 原本是直接 call funcName 
+```
