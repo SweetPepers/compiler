@@ -127,6 +127,7 @@ static Node *CurrentSwitch;
 //        | "default" ":" stmt
 //        | "for" "(" exprStmt expr? ";" expr? ")" stmt
 //        | "while" "(" expr ")" stmt
+//        | "do" stmt "while" "(" expr ")" ";"
 //        | "goto" ident ";"
 //        | "break" ";"
 //        | "continue" ";"
@@ -1285,6 +1286,7 @@ static void GVarInitializer(Token **Rest, Token *Tok, Obj *Var) {
 //        | "default" ":" stmt
 //        | "for" "(" exprStmt expr? ";" expr? ")" stmt
 //        | "while" "(" expr ")" stmt
+//        | "do" stmt "while" "(" expr ")" ";"
 //        | "goto" ident ";"
 //        | "break" ";"
 //        | "continue" ";"
@@ -1452,6 +1454,34 @@ static Node *stmt(Token **Rest, Token *Tok) {
     ContLabel = Cont;
     return Nd;
   }
+
+  // "do" stmt "while" "(" expr ")" ";"
+  if (equal(Tok, "do")) {
+    Node *Nd = newNode(ND_DO, Tok);
+
+    // 存储此前break/continue标签的名称
+    char *Brk = BrkLabel;
+    char *Cont = ContLabel;
+    // 设置break/continue标签的名称
+    BrkLabel = Nd->BrkLabel = newUniqueName();
+    ContLabel = Nd->ContLabel = newUniqueName();
+
+    // stmt
+    Nd->Then = stmt(&Tok, Tok->Next);
+
+    // 恢复此前的break/continue标签
+    BrkLabel = Brk;
+    ContLabel = Cont;
+
+    Tok = skip(Tok, "while");
+    Tok = skip(Tok, "(");
+    Nd->Cond = expr(&Tok, Tok);
+    Tok = skip(Tok, ")");
+
+    *Rest = skip(Tok, ";");
+    return Nd;
+  }
+
   // "goto" ident ";"
   if (equal(Tok, "goto")) {
     Node *Nd = newNode(ND_GOTO, Tok);

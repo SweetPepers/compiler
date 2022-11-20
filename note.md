@@ -3545,3 +3545,30 @@ static Node *postfix(Token **Rest, Token *Tok) {
 根据Attr 给全局变量的isStatic赋值
 
 生成代码时 判断一下 打印 `.global`还是`.local`
+
+
+### 124 do while
+// "do" stmt "while" "(" expr ")" ";"
+
+```c
+case ND_DO: {
+  int C = count();
+  printLn("\n# =====do while语句%d============", C);
+  printLn("\n# begin语句%d", C);
+  printLn(".L.begin.%d:", C);
+
+  printLn("\n# Then语句%d", C);
+  genStmt(Nd->Then);
+
+  printLn("\n# Cond语句%d", C);
+  printLn("%s:", Nd->ContLabel);
+  genExpr(Nd->Cond);
+
+  printLn("  # 跳转到循环%d的.L.begin.%d段", C, C);
+  printLn("  bnez a0, .L.begin.%d", C);
+
+  printLn("\n# 循环%d的%s段标签", C, Nd->BrkLabel);
+  printLn("%s:", Nd->BrkLabel);
+  return;
+}
+```
