@@ -3483,3 +3483,54 @@ if (Attr && Attr->IsStatic) {
   continue;
 }
 ```
+
+### 121 复合字面量
+**CRUX** "(" typeName ")" "{" initializerList "}"   =  var(anonymous)
+
+// postfix = "(" typeName ")" "{" initializerList "}"
+//         | primary ("[" expr "]" | "." ident)* | "->" ident | "++" | "--")*
+
+```c
+(int){1}
+((struct {char a; int b;}){'a', 3}).a
+```
+
+优先级很高, 仅次于基本单元
+
+递归下降法进入此语法前, 会先进入cast语法, `"{" initializerList "}"` 不能按照 unary语法解析, 要截断直接进入postfix语法
+
+构建的核心为定义一个假的变量, 然后用初始化器构造变量, 再将变量本身当成一个右值
+- 全局变量: 因为全局变量的构造器不用放入语法树中也会执行, 所以直接返回变量即可  
+- 局部变量: 局部变脸的构造器不会自动执行, 用逗号表达式`执行+返回`  
+
+```c
+
+// postfix = "(" typeName ")" "{" initializerList "}"
+//         | primary ("[" expr "]" | "." ident)* | "->" ident | "++" | "--")*
+static Node *postfix(Token **Rest, Token *Tok) {
+
+  // "(" typeName ")" "{" initializerList "}"
+  if (equal(Tok, "(") && isTypename(Tok->Next)) {
+    // 复合字面量
+    Token *Start = Tok;
+    Type *Ty = typename(&Tok, Tok->Next);
+    Tok = skip(Tok, ")");
+    
+    // 全局变量
+    if (Scp->Next == NULL) {
+      Obj *Var = newAnonGVar(Ty);
+      GVarInitializer(Rest, Tok, Var);
+      return newVarNode(Var, Start);
+    }
+
+    Obj *Var = newLVar("", Ty);
+    Node *LHS = LVarInitializer(Rest, Tok, Var);
+    Node *RHS = newVarNode(Var, Tok);
+    return newBinary(ND_COMMA, LHS, RHS, Start);
+  }
+
+  // primary
+
+// ...
+}
+```

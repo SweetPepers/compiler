@@ -97,6 +97,10 @@ static Node *CurrentSwitch;
 //            | "_Alignas" ("(" typename | constExpr ")")
 //            | "struct" structDecl | "union" unionDecl
 //            | "enum" enumSpecifier)+
+// structDecl = structUnionDecl
+// unionDecl = structUnionDecl
+// structUnionDecl = ident? ("{" structMembers)?
+// structMembers = (declspec declarator (","  declarator)* ";")* "}"
 // enumSpecifier = ident? "{" enumList? "}"
 //                 | ident ("{" enumList? "}")?
 // enumList = ident ("=" constExpr)? ("," ident ("=" constExpr)?)* ","?
@@ -145,15 +149,12 @@ static Node *CurrentSwitch;
 // shift = add ("<<" add | ">>" add)*
 // add = mul ("+" mul | "-" mul)*
 // mul = cast ("*" cast | "/" cast | "%" cast)*
-// cast = ("(" typeName ")" cast) | unary
+// cast = ("(" typeName ")" cast) | unary | postfix
 // unary = ("+" | "-" | "*" | "&" | "!" | "~") cast
 //       | ("++" | "--") unary
 //       | postfix
-// structDecl = structUnionDecl
-// unionDecl = structUnionDecl
-// structUnionDecl = ident? ("{" structMembers)?
-// structMembers = (declspec declarator (","  declarator)* ";")* "}"
-// postfix = primary ("[" expr "]" | "." ident | "->" ident | "++" | "--")*
+// postfix = "(" typeName ")" "{" initializerList "}"
+//         | primary ("[" expr "]" | "." ident)* | "->" ident | "++" | "--")*
 // primary = "(" "{" stmt+ "}" ")"
 //         | "(" expr ")"
 //         | "sizeof" "(" typeName ")"
@@ -829,7 +830,7 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy, VarAttr *Attr) 
         GVarInitializer(&Tok, Tok->Next, Var);
       continue;
     }
-    
+
     Obj *Var = newLVar(getIdent(Ty->Name), Ty);
 
     // 是否存在变量的对齐值
@@ -2084,13 +2085,19 @@ static Node *mul(Token **Rest, Token *Tok) {
 }
 
 // 解析类型转换
-// cast = ("(" typeName ")" cast) | unary
+// cast = ("(" typeName ")" cast ) | unary
 static Node *cast(Token **Rest, Token *Tok) {
   // cast = "(" typeName ")" cast
   if (equal(Tok, "(") && isTypename(Tok->Next)) {
     Token *Start = Tok;
     Type *Ty = typename(&Tok, Tok->Next);
     Tok = skip(Tok, ")");
+    
+    // 复合字面量
+    if (equal(Tok, "{"))
+      // return unary(Rest, Start);
+      return postfix(Rest, Start);
+
     // 解析嵌套的类型转换
     Node *Nd = newCast(cast(Rest, Tok), Ty);
     Nd->Tok = Start;
@@ -2293,8 +2300,31 @@ static Node *newIncDec(Node *Nd, Token *Tok, int Addend) {
                  Nd->Ty);
 }
 
-// postfix = primary ("[" expr "]" | "." ident | "->" ident | "++" | "--")*
+// postfix = "(" typeName ")" "{" initializerList "}"
+//         | primary ("[" expr "]" | "." ident)* | "->" ident | "++" | "--")*
 static Node *postfix(Token **Rest, Token *Tok) {
+
+  // "(" typeName ")" "{" initializerList "}"
+  if (equal(Tok, "(") && isTypename(Tok->Next)) {
+    // 复合字面量
+    Token *Start = Tok;
+    Type *Ty = typename(&Tok, Tok->Next);
+    Tok = skip(Tok, ")");
+    
+    // 全局变量
+    if (Scp->Next == NULL) {
+      Obj *Var = newAnonGVar(Ty);
+      GVarInitializer(Rest, Tok, Var);
+      return newVarNode(Var, Start);
+    }
+
+    Obj *Var = newLVar("", Ty);
+    Node *LHS = LVarInitializer(Rest, Tok, Var);
+    Node *RHS = newVarNode(Var, Tok);
+    return newBinary(ND_COMMA, LHS, RHS, Start);
+  }
+
+
   // primary
   Node *Nd = primary(&Tok, Tok);  //primary(Rest, Tok);  rest之后在末尾会使用
 
