@@ -3676,3 +3676,55 @@ for (Obj *Var = Fn->Params; Var; Var = Var->Next) {
 
 kw和typename里面添加 `aligned`
 
+### 131 无符号整型unsigned
+- rvcc.h
+`bool Type::IsUnsigned; // 是否为无符号的`  
+- type.c
+新的取通用类型的规则
+```c
+// 获取容纳左右部的类型
+static Type *getCommonType(Type *Ty1, Type *Ty2) {
+  if (Ty1->Base)
+    return pointerTo(Ty1->Base);
+  // 小于四字节则为int
+  if (Ty1->Size < 4)
+    Ty1 = TyInt;
+  if (Ty2->Size < 4)
+    Ty2 = TyInt;
+
+  // 选择二者中更大的类型
+  if (Ty1->Size != Ty2->Size)
+    return (Ty1->Size < Ty2->Size) ? Ty2 : Ty1;
+
+  // 优先返回无符号类型（更大）
+  if (Ty2->IsUnsigned)
+    return Ty2;
+  return Ty1;
+}
+```
+另外添加了 TyUint, TyUshort, TyUchar, TyUlong等类型, 将isUnsigned设置为true
+
+CRUX int64_t和long的区别:  
+`typedef unsigned long int64_t`  所以暂时没有区别
+```c
+// tokenize:readIntLiteral()
+// 用int64_t替换long来存储数字
+int64_t Val = strtoul(P, &P, Base);
+```
+
+- parse.c
+declspec语法中添加了`unsigned`, 同时改一些类型的赋值  
+注意::CRUX RISCV当中char是无符号类型的
+
+- codegen.c
+  - load(访问变量结构体成员或者对指针解引用时使用), 判断一下需要load的类型, 判断需不需要加个u  
+    `ld` --> `ldu`  
+  - 类型转换规则改变, 类型转换只需要注意转换的目标类型, 大小负责高位置零, 是否无符号整型选择使用逻辑右移(srli)还是算术右移(srai)  
+  - 另外, 函数调用后需要清除寄存器高位的值用到移位, 也需要判断类型选择算术右移还是逻辑右移   
+  TODO :: 为什么int类型不用清除? 因为32位指令自动高位置0吗?
+  - 一些常规运算也需要判断无符号, 除法, 取余, 移位, 比较运算(小于, 小于等于)
+
+
+
+
+

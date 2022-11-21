@@ -234,9 +234,10 @@ typedef enum {
 } TypeKind;
 
 struct Type{
-  TypeKind Kind;  // 种类
-  int Size;       // 大小, sizeof返回值
-  int Align;      // 对齐
+  TypeKind Kind;   // 种类
+  int Size;        // 大小, sizeof返回值
+  int Align;       // 对齐
+  bool IsUnsigned; // 是否为无符号的
   
   Type *Base;     // 指向的类型
   Token *Name;    // 类型对应的名称, 变量名 函数名等
@@ -273,6 +274,11 @@ extern Type *TyChar;
 extern Type *TyInt;
 extern Type *TyLong;
 extern Type *TyShort;
+
+extern Type *TyUChar;
+extern Type *TyUShort;
+extern Type *TyUInt;
+extern Type *TyULong;
 
 // 判断是否为整型
 bool isInteger(Type *TY);
