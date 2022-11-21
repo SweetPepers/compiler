@@ -84,6 +84,9 @@ short short_fn();
 // [128] 增加__va_area__以支持可变参数函数
 typedef void *va_list;
 
+// [129] 设置空参函数调用为可变的
+int nullParam() { return 123; }
+
 int sprintf(char *buf, char *fmt, ...);
 int vsprintf(char *buf, char *fmt, va_list ap);
 
@@ -156,6 +159,9 @@ int main() {
   ASSERT(0, ({ char buf[100]; sprintf(buf, "%d %d %s", 1, 2, "foo"); strcmp("1 2 foo", buf); }));
 
   ASSERT(0, ({ char buf[100]; fmt(buf, "%d %d %s", 1, 2, "foo"); strcmp("1 2 foo", buf); }));
+
+  // [129] 设置空参函数调用为可变的
+  ASSERT(123, ({ nullParam(); }));
 
   printf("OK\n");
   return 0;

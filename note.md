@@ -3651,3 +3651,11 @@ for (Obj *Var = Fn->Params; Var; Var = Var->Next) {
 }
 ``` 
 
+### 129 设置空参函数调用为可变的
+```c
+// funcParams()
+  // 设置空参函数调用为可变的
+  if (Cur == &Head)
+    IsVariadic = true;
+```
+
