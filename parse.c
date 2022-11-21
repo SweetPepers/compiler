@@ -95,6 +95,7 @@ static Node *CurrentSwitch;
 // declspec =  ("void" | "_Bool" | "char" | "short" | "int" |"long" 
 //            | "typedef" | "static" | "extern"
 //            | "_Alignas" ("(" typename | constExpr ")")
+//            | "signed"
 //            | "struct" structDecl | "union" unionDecl
 //            | "enum" enumSpecifier)+
 // structDecl = structUnionDecl
@@ -446,7 +447,7 @@ static char *getIdent(Token *Tok) {
 // 判断是否为类型名
 static bool isTypename(Token *Tok) {
   static char *Kw[] = {
-      "void", "_Bool", "char", "short", "int", "long", "struct", "union", "typedef", "enum", "static", "extern","_Alignas",  
+      "void", "_Bool", "char", "short", "int", "long", "struct", "union", "typedef", "enum", "static", "extern","_Alignas", "signed", 
   };
 
   for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I) {
@@ -517,6 +518,7 @@ static Type *typename(Token **Rest, Token *Tok) {
 // declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
 //             | "typedef" | "static" | "extern"
 //             | "_Alignas" ("(" typeName | constExpr ")")
+//             | "signed"
 //             | "struct" structDecl | "union" unionDecl
 //             | "enum" enumSpecifier)+
 static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
@@ -530,6 +532,7 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
     INT   = 1 << 8,
     LONG  = 1 << 10,
     OTHER = 1 << 12,
+    SIGNED = 1 << 13,
   };
 
   Type *Ty = TyInt;
@@ -606,6 +609,8 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
       Counter += INT;
     else if (equal(Tok, "long"))
       Counter += LONG;
+    else if (equal(Tok, "signed"))
+      Counter |= SIGNED;
     else
       unreachable();
 
@@ -618,19 +623,28 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
       Ty = TyBool;
       break;
     case CHAR:
+    case SIGNED + CHAR:
       Ty = TyChar;
       break;
     case SHORT:
     case SHORT + INT:
+    case SIGNED + SHORT:
+    case SIGNED + SHORT + INT:
       Ty = TyShort;
       break;
     case INT:
+    case SIGNED:
+    case SIGNED + INT:
       Ty = TyInt;
       break;
     case LONG:
     case LONG + INT:
     case LONG + LONG:
     case LONG + LONG + INT:
+    case SIGNED + LONG:
+    case SIGNED + LONG + INT:
+    case SIGNED + LONG + LONG:
+    case SIGNED + LONG + LONG + INT:
       Ty = TyLong;
       break;
     default:
@@ -802,7 +816,7 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
     Cur->Next = copyType(DeclarTy);
     Cur = Cur->Next;
   }
-  
+
   // 设置空参函数调用为可变的
   if (Cur == &Head)
     IsVariadic = true;

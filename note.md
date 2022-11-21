@@ -3659,3 +3659,20 @@ for (Obj *Var = Fn->Params; Var; Var = Var->Next) {
     IsVariadic = true;
 ```
 
+### 130 signed关键字
+`signed int`
+// declspec = ("void" | "_Bool" | "char" | "short" | "int" | "long"
+//             | "typedef" | "static" | "extern"
+//             | "_Alignas" ("(" typeName | constExpr ")")
+//             | "signed"
+//             | "struct" structDecl | "union" unionDecl
+//             | "enum" enumSpecifier)+
+
+与其他类型的加不同, signed是 |= 
+```c
+    else if (equal(Tok, "signed"))
+      Counter |= SIGNED;
+```
+
+kw和typename里面添加 `aligned`
+
