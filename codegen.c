@@ -35,7 +35,7 @@ int alignTo(int N, int Align) {
 static int Depth;
 
 // 用于函数参数的寄存器们
-static char *ArgReg[] = {"a0", "a1", "a2", "a3", "a4", "a5"};
+static char *ArgReg[] = {"a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7"};
 
 // 当前的函数
 static Obj *CurrentFn;
@@ -691,7 +691,17 @@ void genFun(Obj *Fn){
 
   int I = 0;
   for (Obj *Var = Fn->Params; Var; Var = Var->Next) {
-    storeGeneral(I++, Var->Offset, Var->Ty->Size);
+    if (Var->Ty->Kind != TY_ARRAY){
+      storeGeneral(I++, Var->Offset, Var->Ty->Size);
+    }else{
+      // 可变参数存入__va_area__，注意最多为7个
+      int Offset = Var->Offset;
+      while(I < 8){
+        printLn("  # 可变参数，相对%s的偏移量为%d", Var->Name, Offset - Var->Offset);
+        storeGeneral(I++, Offset, 8);
+        Offset += 8;
+      }
+    }
   }
   // 生成语句链表的代码
   genStmt(Fn->Body);

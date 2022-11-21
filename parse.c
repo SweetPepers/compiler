@@ -2639,6 +2639,9 @@ static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr) {
   Locals = NULL;
   // 进入新的域
   enterScope();
+  // 判断是否为可变参数
+  if (Ty->IsVariadic)
+    Fn->VaArea = newLVar("__va_area__", arrayOf(TyChar, 64));
   // 函数参数
   createParamLVars(Ty->Params);
   Fn->Params = Locals;

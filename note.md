@@ -3614,3 +3614,40 @@ funcParams = ("void" | param ("," param)* ("," "...")?)? ")"
 
 然后根据函数定义时的参数, 如果含有`...`就设置一下
 
+### 128 增加__va_area__以支持可变参数函数
+
+使用: ,` __va_area__ `指向可变参数 `...`
+```c
+int vsprintf(char *buf, char *fmt, va_list ap);
+
+char *fmt(char *buf, char *fmt, ...) {
+  va_list ap = __va_area__;
+  vsprintf(buf, fmt, ap);
+}
+```
+
+上一节中设置了函数定义中的`...` `isVariadic`
+
+在解析函数定义`function()`中, 如果`isBariadic` 就 给函数添加一个 `__va_area__`的局部变量
+```c
+  // 判断是否为可变参数
+  if (Ty->IsVariadic)
+    Fn->VaArea = newLVar("__va_area__", arrayOf(TyChar, 64)); // VaArea 暂时没被codegen用到
+```
+ `__va_area__` 占了64个字节, 所以在代码生成中如果含有可变参数, 直接将值全放进剩余寄存器即可, 不存在的参数会被置0(NULL), **CURX所以可变参数要为函数的最后一个形参**
+```c
+for (Obj *Var = Fn->Params; Var; Var = Var->Next) {
+  if (Var->Ty->Kind != TY_ARRAY){
+    storeGeneral(I++, Var->Offset, Var->Ty->Size);
+  }else{
+    // 可变参数存入__va_area__，注意最多为7个
+    int Offset = Var->Offset;
+    while(I < 8){
+      printLn("  # 可变参数，相对%s的偏移量为%d", Var->Name, Offset - Var->Offset);
+      storeGeneral(I++, Offset, 8);
+      Offset += 8;
+    }
+  }
+}
+``` 
+
