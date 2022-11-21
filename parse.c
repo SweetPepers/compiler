@@ -107,7 +107,7 @@ static Node *CurrentSwitch;
 // declarator = "*"* ( "(" declarator ")" | ident ) typeSuffix
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
 // arrayDimensions = constExpr? "]" typeSuffix
-// funcParams = ("void" | param ("," param)*)? ")"
+// funcParams = ("void" | param ("," param)* ("," "...")?)? ")"
 // param = declspec declarator
 // compoundStmt = (typedef | declaration | stmt)* "}"
 // declaration = declspec (declarator ("=" initializer)? ("," declarator ("=" initializer)?)*)? ";"
@@ -763,7 +763,7 @@ static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty) {
   return Ty;
 }
 
-// funcParams = ("void" | param ("," param)*)? ")"
+// funcParams = ("void" | param ("," param)* ("," "...")?)? ")"
 // param = declspec declarator
 static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
   // 封装一个函数节点
@@ -776,12 +776,18 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
 
   Type Head = {};
   Type *Cur = &Head;
+  bool IsVariadic = false;
 
   while (!equal(Tok, ")")) {
     // funcParams = param ("," param)*
     // param = declspec declarator
     if (Cur != &Head)
       Tok = skip(Tok, ",");
+    if (equal(Tok, "...")){
+      IsVariadic = true;
+      Tok = Tok->Next;
+      continue;
+    }
     Type *BaseTy = declspec(&Tok, Tok, NULL); // int
     Type *DeclarTy = declarator(&Tok, Tok, BaseTy); // int ***  []
     // T类型的数组被转换为T*
@@ -800,6 +806,8 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
 
   // 传递形参
   Ty->Params = Head.Next;
+  // 传递可变参数
+  Ty->IsVariadic = IsVariadic;
   *Rest = Tok->Next;
   return Ty;
 }
