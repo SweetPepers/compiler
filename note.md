@@ -3775,6 +3775,60 @@ riscv 中没有 `ldu` 指令
 
 `pointerTo()`函数中设置 `Ty->IsUnsigned = true`
 
+### 135 处理常量表达式的无符号整型
+error
+```
+test/constExpr.s:2963: Error: illegal operands `addi sp,sp,-33520'
+test/constExpr.s:2966: Error: illegal operands `sd a0,-33508(fp)'
+test/constExpr.s:2969: Error: illegal operands `sd a1,-33500(fp)'
+test/constExpr.s:2972: Error: illegal operands `sd a2,-33492(fp)'
+test/constExpr.s:2975: Error: illegal operands `sd a3,-33484(fp)'
+test/constExpr.s:2978: Error: illegal operands `sd a4,-33476(fp)'
+test/constExpr.s:2981: Error: illegal operands `sd a5,-33468(fp)'
+test/constExpr.s:2984: Error: illegal operands `sd a6,-33460(fp)'
+test/constExpr.s:2987: Error: illegal operands `sd a7,-33452(fp)'
+test/constExpr.s:3032: Error: illegal operands `sb zero,-33444(fp)'
+test/constExpr.s:3033: Error: illegal operands `sb zero,-33443(fp)'
+test/constExpr.s:3034: Error: illegal operands `sb zero,-33442(fp)'
+test/constExpr.s:3035: Error: illegal operands `sb zero,-33441(fp)'
+test/constExpr.s:3038: Error: illegal operands `addi a0,fp,-33444'
+test/constExpr.s:3074: Error: illegal operands `addi a0,fp,-33440'
+test/constExpr.s:3080: Error: illegal operands `addi a0,fp,-33444'
+```
+
+![](./picture/addi32.png)
+32位指令只有11位留给立即数, -33444 超出了 imm的范围
+所以在含有立即数的指令中, 要将立即数先存入t0, 在addi可能越界的地方替换  
+64位:risc-spec-v2.2:p30:
+>ADDIW is an RV64I-only instruction that adds the sign-extended 12-bit immediate to register rs1
+and produces the proper sign-extension of a 32-bit result in rd. Overflows are ignored and the
+result is the low 32 bits of the result sign-extended to 64 bits. Note, ADDIW rd, rs1, 0 writes the
+sign-extension of the lower 32 bits of register rs1 into register rd (assembler pseudo-op SEXT.W).
+```c
+printLn(" addi a0, fp, %d", Nd->Var->Offset);
+//==>
+printLn("  li t0, %d", Nd->Var->Offset);
+printLn("  add a0, fp, t0");
+```
+其他如load, store使用 imm时也要改为寄存器
+```c
+printLn(" sb zero, %d(fp)", Nd->Var->Offset + I);
+// ==>
+printLn("  li t0, %d", Nd->Var->Offset + I);
+printLn("  add t0, fp, t0");
+printLn("  sb zero, 0(t0)");
+```
+
+- parse.c
+在 `constExpr()`中做131中类似的操作  
+除法  求余, 向右移位, 比较(小于, 小于等于)  
+注意移位:
+```c
+case ND_SHR:
+  if (Nd->Ty->IsUnsigned && Nd->Ty->Size == 8)  // TODO : 为什么判断8字节??
+    return (uint64_t)eval(Nd->LHS) >> eval(Nd->RHS);
+```
+
 
 
 
