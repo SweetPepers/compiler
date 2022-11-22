@@ -112,7 +112,7 @@ static void load(Type *Ty) {
   }else if (Ty->Size == 4){
     printLn("  lw%s a0, 0(a0)", Suffix);
   }else{
-    printLn("  ld%s a0, 0(a0)", Suffix);
+    printLn("  ld a0, 0(a0)");
   }
 }
 

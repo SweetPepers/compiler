@@ -3770,6 +3770,12 @@ declspec语法中添加了`unsigned`, 同时改一些类型的赋值
 
 指针相减返回元素个数 TyInt->Tylong, (为什么不是TyULong, 可以为负数)
 
+### 134 将指针作为无符号类型进行比较
+riscv 中没有 `ldu` 指令
+
+`pointerTo()`函数中设置 `Ty->IsUnsigned = true`
+
+
 
 
 
