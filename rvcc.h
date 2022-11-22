@@ -88,6 +88,7 @@ struct Obj {
   Obj *Next;       // 指向下一对象
   char *Name;      // 变量名
   Type *Ty;        // 变量类型
+  Token *Tok;      // 对应的终结符
   bool IsLocal;    // 局部变量还是全局变量
   int Align;       // 对齐量
 
@@ -240,7 +241,9 @@ struct Type{
   bool IsUnsigned; // 是否为无符号的
   
   Type *Base;     // 指向的类型
+  
   Token *Name;    // 类型对应的名称, 变量名 函数名等
+  Token *NamePos; // 名称位置
 
   // 数组
   int ArrayLen; // 数组长度, 元素总个数

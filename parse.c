@@ -790,14 +790,23 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
     return declarator(&Tok, Start->Next, Ty);
   }
 
-  if (Tok->Kind != TK_IDENT)
-    errorTok(Tok, "expected a variable name");
+  // 默认名称为空
+  Token *Name = NULL;
+  // 名称位置指向类型后的区域
+  Token *NamePos = Tok;
+
+  // 存在名字则赋值
+  if (Tok->Kind == TK_IDENT) {
+    Name = Tok;
+    Tok = Tok->Next;
+  }
 
   // typeSuffix
-  Ty = typeSuffix(Rest, Tok->Next, Ty);
+  Ty = typeSuffix(Rest, Tok, Ty);
   // ident
   // 变量名 or 函数名
-  Ty->Name = Tok;
+  Ty->Name = Name;
+  Ty->NamePos = NamePos;
   return Ty;
 }
 
@@ -906,6 +915,8 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy, VarAttr *Attr) 
     Type *Ty = declarator(&Tok, Tok, BaseTy);
     if (Ty->Kind == TY_VOID)
       errorTok(Tok, "variable declared void");
+    if (!Ty->Name)
+      errorTok(Ty->NamePos, "variable name omitted");
 
     if (Attr && Attr->IsStatic) {
       // 静态局部变量
@@ -2615,6 +2626,8 @@ static Token *parseTypedef(Token *Tok, Type *BaseTy) {
 
     Type *Ty = declarator(&Tok, Tok, BaseTy);
     // 类型别名的变量名存入变量域中，并设置类型
+    if (!Ty->Name)
+      errorTok(Ty->NamePos, "typedef name omitted");
     pushScope(getIdent(Ty->Name))->Typedef = Ty;
   }
   return Tok;
@@ -2681,6 +2694,8 @@ static void createParamLVars(Type *Param) {
     // 递归到形参最底部
     // 先将最底部的加入Locals中，之后的都逐个加入到顶部，保持顺序不变
     createParamLVars(Param->Next);
+    if (!Param->Name)
+      errorTok(Param->NamePos, "parameter name omitted");
     // 添加到Locals中
     newLVar(getIdent(Param->Name), Param);
   }
@@ -2709,6 +2724,8 @@ static void resolveGotoLabels(void) {
 // functionDefinition = declarator ("{" compoundStmt | ";" )
 static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr) {
   Type *Ty = declarator(&Tok, Tok, BaseTy);
+  if (!Ty->Name)
+    errorTok(Ty->NamePos, "function name omitted");
 
   Obj *Fn = newGVar(getIdent(Ty->Name), Ty);  // 函数为全局变量
   Fn->IsFunction = true;
@@ -2727,7 +2744,7 @@ static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr) {
   enterScope();
   // 判断是否为可变参数
   if (Ty->IsVariadic)
-    Fn->VaArea = newLVar("__va_area__", arrayOf(TyChar, 64));
+    Fn->VaArea = newLVar("__va_area__", arrayOf(TyChar, 64)); 
   // 函数参数
   createParamLVars(Ty->Params);
   Fn->Params = Locals;
@@ -2755,6 +2772,8 @@ static Token *globalVariable(Token *Tok, Type *Basety, VarAttr *Attr) {
     First = false;
 
     Type *Ty = declarator(&Tok, Tok, Basety);
+    if (!Ty->Name)
+      errorTok(Ty->NamePos, "variable name omitted");
     Obj *Var = newGVar(getIdent(Ty->Name), Ty);
     // 若有设置，则覆盖全局变量的对齐值
     if (Attr->Align)
