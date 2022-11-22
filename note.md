@@ -3829,6 +3829,23 @@ case ND_SHR:
     return (uint64_t)eval(Nd->LHS) >> eval(Nd->RHS);
 ```
 
+### 136 忽略多个关键字
+`"const", "volatile", "auto", "register", "restrict", "__restrict", "__restrict__", "_Noreturn",`
+```c
+// declspec =  ("void" | "_Bool" | "char" | "short" | "int" |"long" 
+//            | "typedef" | "static" | "extern"
+//            | "_Alignas" ("(" typename | constExpr ")")
+//            | "signed" | "unsigned"
+//            | "struct" structDecl | "union" unionDecl
+//            | "enum" enumSpecifier
+//            | "const" | "volatile" | "auto" | "register" | "restrict"
+//            | "__restrict" | "__restrict__" | "_Noreturn")+
+
+// declarator = pointers ("(" ident ")" | "(" declarator ")" | ident) typeSuffix
+// pointers = ("*" ("const" | "volatile" | "restrict")*)*
+```
+在含有这些关键字的语法中直接跳过这些关键字, 类型默认为int  
+测试 compat.c, const.c  
 
 
 
