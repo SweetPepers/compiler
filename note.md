@@ -3847,6 +3847,22 @@ case ND_SHR:
 在含有这些关键字的语法中直接跳过这些关键字, 类型默认为int  
 测试 compat.c, const.c  
 
+### 137 忽略数组维度的static和const
+可以修饰常量  
+`void funcy_type(int arg[restrict static 3]) {}`  
+// arrayDimensions = ("static" | "restrict")* constExpr? "]" typeSuffix
+直接跳过
+
+CRUX : 在函数体内定义一个函数会怎样?  
+`void funcdemo(int arg[3]){}`  => `segmentation fault`  
+语法走的是 compoundStmt->declaration->declarator->typeSuffix->funcParams  
+然后在declaration 到 ";", 但是没强制要求有";", 只是一个循环停止的条件 ','哪来的?  
+看汇编代码 走的是 functionDefinition语法
+
+解决了, 因为可以在最外面添加代码块`{}`, 所以代码块中含有fucntion语法, 那又为很么会`segmentation fault`?  
+TODO 回头再说
+
+
 
 
 

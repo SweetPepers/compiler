@@ -110,10 +110,10 @@ static Node *CurrentSwitch;
 // declarator = pointers ("(" ident ")" | "(" declarator ")" | ident) typeSuffix
 // pointers = ("*" ("const" | "volatile" | "restrict")*)*
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
-// arrayDimensions = constExpr? "]" typeSuffix
+// arrayDimensions = ("static" | "restrict")* constExpr? "]" typeSuffix
 // funcParams = ("void" | param ("," param)* ("," "...")?)? ")"
 // param = declspec declarator
-// compoundStmt = (typedef | declaration | stmt)* "}"
+// compoundStmt = (typedef | extern | funciton | declaration | stmt)* "}"
 // declaration = declspec (declarator ("=" initializer)? ("," declarator ("=" initializer)?)*)? ";"
 // initializer = stringInitializer | arrayInitializer | structInitializer | unionInitializer | assign
 // stringInitializer = stringLiteral
@@ -802,8 +802,12 @@ static Type *declarator(Token **Rest, Token *Tok, Type *Ty) {
 }
 
 // 数组维数
-// arrayDimensions = constExpr? "]" typeSuffix
+// arrayDimensions = ("static" | "restrict")* constExpr? "]" typeSuffix
 static Type *arrayDimensions(Token **Rest, Token *Tok, Type *Ty) {
+  // ("static" | "restrict")*
+  while (equal(Tok, "static") || equal(Tok, "restrict"))
+    Tok = Tok->Next;
+
   // "]" 无数组维数的 "[]"
   if (equal(Tok, "]")) {
     Ty = typeSuffix(Rest, Tok->Next, Ty);
@@ -1615,7 +1619,7 @@ static Node *stmt(Token **Rest, Token *Tok) {
 }
 
 // 解析复合语句
-// compoundStmt = (typedef | extern | declaration | stmt)* "}"
+// compoundStmt = (typedef | extern | funciton | declaration | stmt)* "}"
 static Node *compoundStmt(Token **Rest, Token *Tok) {
   // 这里使用了和词法分析类似的单向链表结构
   Node *Nd = newNode(ND_BLOCK, Tok);  // 存储这里的tok
@@ -1625,7 +1629,7 @@ static Node *compoundStmt(Token **Rest, Token *Tok) {
   // 进入新的域
   enterScope();
 
-  // (declaration | stmt)* "}"
+  // (typedef | extern | funciton |declaration | stmt)* "}"
   while (!equal(Tok, "}")) {
     //declaration 
     if(isTypename(Tok) && !equal(Tok->Next, ":")){ // 标签与tyde相同时会走这里
