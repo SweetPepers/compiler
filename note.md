@@ -3763,5 +3763,13 @@ declspec语法中添加了`unsigned`, 同时改一些类型的赋值
 此外 addType中会对没有类型的数字节点添加默认的int类型
 
 
+### 133 在一些表达式中用long或ulong替代int
+有的值不会为负, 所以用ulong替换int
+- sizeof
+- _Alignof
+
+指针相减返回元素个数 TyInt->Tylong, (为什么不是TyULong, 可以为负数)
+
+
 
 

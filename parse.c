@@ -306,6 +306,14 @@ static Node *newLong(int64_t Val, Token *Tok) {
   return Nd;
 }
 
+// 新建一个无符号长整型节点
+static Node *newULong(long Val, Token *Tok) {
+  Node *node = newNode(ND_NUM, Tok);
+  node->Val = Val;
+  node->Ty = TyULong;
+  return node;
+}
+
 // 新变量
 static Node *newVarNode(Obj *Var, Token *Tok) {
   Node *Nd = newNode(ND_VAR, Tok);
@@ -2074,7 +2082,7 @@ static Node *newSub(Node *LHS, Node *RHS, Token *Tok) {
   // ptr - ptr，返回两指针间有多少元素  ==> (ptr - ptr)/8
   if (LHS->Ty->Base && RHS->Ty->Base) {
     Node *Nd = newBinary(ND_SUB, LHS, RHS, Tok);
-    Nd->Ty = TyInt;
+    Nd->Ty = TyLong;
     return newBinary(ND_DIV, Nd, newNum(LHS->Ty->Base->Size, Tok), Tok);
   }
 
@@ -2519,14 +2527,14 @@ static Node *primary(Token **Rest, Token *Tok) {
       isTypename(Tok->Next->Next)) {
     Type *Ty = typename(&Tok, Tok->Next->Next);
     *Rest = skip(Tok, ")");
-    return newNum(Ty->Size, Start);
+    return newULong(Ty->Size, Start);
   }
 
   // "sizeof" unary
   if (equal(Tok, "sizeof")){
     Node *Nd = unary(Rest, Tok->Next); // 跳过sizeof, 防止变函数 sizeof函数
     addType(Nd);
-    return newNum(Nd->Ty->Size, Tok);
+    return newULong(Nd->Ty->Size, Tok);
   }
 
   // "_Alignof" "(" typeName ")"
@@ -2535,7 +2543,7 @@ static Node *primary(Token **Rest, Token *Tok) {
       isTypename(Tok->Next->Next)) {
     Type *Ty = typename(&Tok, Tok->Next->Next);
     *Rest = skip(Tok, ")");
-    return newNum(Ty->Align, Tok);
+    return newULong(Ty->Align, Tok);
   }
 
   // "_Alignof" unary
@@ -2543,7 +2551,7 @@ static Node *primary(Token **Rest, Token *Tok) {
   if (equal(Tok, "_Alignof")) {
     Node *Nd = unary(Rest, Tok->Next);
     addType(Nd);
-    return newNum(Nd->Ty->Align, Tok);
+    return newULong(Nd->Ty->Align, Tok);
   }
 
   // str
