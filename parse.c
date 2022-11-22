@@ -2487,6 +2487,7 @@ static Node *primary(Token **Rest, Token *Tok) {
   if (Tok->Kind == TK_NUM) {
     Node *Nd = newNum(Tok->Val, Tok);
     *Rest = Tok->Next;
+    Nd->Ty = Tok->Ty;
     return Nd;
   }
 

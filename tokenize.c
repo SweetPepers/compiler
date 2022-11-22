@@ -301,6 +301,7 @@ static Token *readCharLiteral(char *Start) {
   // 构造一个NUM的终结符，值为C的数值
   Token *Tok = newToken(TK_NUM, Start, End + 1);
   Tok->Val = C;
+  Tok->Ty = TyInt;
   return Tok;
 }
 
@@ -350,12 +351,67 @@ static Token *readIntLiteral(char *Start) {
 
   // 将字符串转换为Base进制的数字
   int64_t Val = strtoul(P, &P, Base);
-  if (isalnum(*P))
+  bool L = false;
+  bool U = false;
+
+  if (!strncasecmp(P, "llu", 3) || !strncasecmp(P, "ull", 3)){
+  // LLU ULL
+    P += 3;
+    L = U = true;
+  }else if (!strncasecmp(P, "lu", 2) || !strncasecmp(P, "ul", 2)) { // 忽略大小写
+    // LU
+    P += 2;
+    L = U = true;
+  } else if (!strncasecmp(P, "ll", 2)) {
+    // LL
+    P += 2;
+    L = true;
+  } else if (*P == 'L' || *P == 'l') {
+    // L
+    P++;
+    L = true;
+  } else if (*P == 'U' || *P == 'u') {
+    // U
+    P++;
+    U = true;
+  }
+
+  // 匹配完成后不应该还有数字
+  if (isalnum(*P))  
     errorAt(P, "invalid digit");
+
+  // 推断出类型，采用能存下当前数值的类型
+  Type *Ty;
+  if (Base == 10) {
+    if (L && U)
+      Ty = TyULong;
+    else if (L)
+      Ty = TyLong;
+    else if (U)
+      Ty = (Val >> 32) ? TyULong : TyUInt;
+    else
+      Ty = (Val >> 31) ? TyLong : TyInt;
+  } else {
+    if (L && U)
+      Ty = TyULong;
+    else if (L)
+      Ty = (Val >> 63) ? TyULong : TyLong;
+    else if (U)
+      Ty = (Val >> 32) ? TyULong : TyUInt;
+    else if (Val >> 63)
+      Ty = TyULong;
+    else if (Val >> 32)
+      Ty = TyLong;
+    else if (Val >> 31)
+      Ty = TyUInt;
+    else
+      Ty = TyInt;
+  }
 
   // 构造NUM的终结符
   Token *Tok = newToken(TK_NUM, Start, P);
   Tok->Val = Val;
+  Tok->Ty = Ty;
   return Tok;
 }
 

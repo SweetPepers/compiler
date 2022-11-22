@@ -56,7 +56,7 @@ struct Token {
   int64_t Val;    // 值
   char *Loc;      // 在解析的字符串内的位置
   int Len;        // 长度
-  Type *Ty;       // TK_STR使用
+  Type *Ty;       // TK_STR TK_NUM 使用
   char *Str;      // 字符串字面量, 包括'\0';
 
   int LineNo; // 行号

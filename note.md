@@ -3724,6 +3724,43 @@ declspec语法中添加了`unsigned`, 同时改一些类型的赋值
   TODO :: 为什么int类型不用清除? 因为32位指令自动高位置0吗?
   - 一些常规运算也需要判断无符号, 除法, 取余, 移位, 比较运算(小于, 小于等于)
 
+### 132 支持U L LL后缀
+在token序列化阶段像字符串一样可以判断出数字的具体类型  
+使用`Tok->Ty`
+
+后缀有大小写的`LLU, ULL, LU, UL, L, U`等, 解析完数字后, 通过 `strncasecmp(char* sourse, char* dst, int len)`函数确定后缀, 并以此设置 L U, 规则如下:  TODO : 其他进制的数字判断规则?  
+就是其他进制的数字不带U, 不一定不为U, 需判断最高位
+```c
+  // 推断出类型，采用能存下当前数值的类型
+  Type *Ty;
+  if (Base == 10) {
+    if (L && U)
+      Ty = TyULong;
+    else if (L)
+      Ty = TyLong;
+    else if (U)
+      Ty = (Val >> 32) ? TyULong : TyUInt;  //能存下当前数值的类型
+    else 
+      Ty = (Val >> 31) ? TyLong : TyInt; // 能存下当前数值的类型
+  } else {
+    if (L && U)
+      Ty = TyULong;
+    else if (L)
+      Ty = (Val >> 63) ? TyULong : TyLong;
+    else if (U)
+      Ty = (Val >> 32) ? TyULong : TyUInt;
+    else if (Val >> 63)
+      Ty = TyULong;
+    else if (Val >> 32)
+      Ty = TyLong;
+    else if (Val >> 31)
+      Ty = TyUInt;
+    else
+      Ty = TyInt;
+  }
+```
+
+此外 addType中会对没有类型的数字节点添加默认的int类型
 
 
 
