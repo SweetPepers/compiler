@@ -3935,3 +3935,48 @@ fmv.d.x fa0, a0
 lui x15, 0x12345
 addi x15, x15, 0x678 
 ```
+
+### 140 支持float和double用于局部变量或类型转换
+简单的添加两个类型float double
+
+**codegen**  
+转换规则:  
+指令fcvt: `fcvt.to.from rd, rs`
+- s : f32
+- d : f64
+- l : i64
+- w : i32
+- lu : u64
+- wu : u32
+> FCVT.W.S or FCVT.L.S converts a floating-point number in floating-point register rs1 to a signed 32-bit or 64-bit integer, respectively, in integer register rd. FCVT.S.W or FCVT.S.L converts a 32-bit or 64-bit signed integer, respectively, in integer register rs1 into a floating-point number in floating-point register rd  
+
+> rtz:Floating-Point Control and Status Register 里面的值, 意为 `round towards zero`  加在f2i末尾的表明舍入规则  
+The floating-point control and status register, fcsr, is a RISC-V control and status register (CSR).
+It is a 32-bit read/write register that selects the dynamic rounding mode for floating-point arith-
+metic operations and holds the accrued exception flags, as shown in Figure 8.2.
+
+需根据转换目标选择移位置零(8位, 16位)
+| from | to | regular         |
+| --- | --- | --------------- |
+| i64 | f32 | fcvt.s.l fa0, a0|
+|     | f64 | fcvt.d.l fa0, a0|
+| u64 | f32 | fcvt.s.lu fa0, a0|
+|     | f64 | fcvt.s.lu fa0, a0|
+| f32 | i8  | fcvt.w.s a0, fa0, rtz 移位|
+|     | i16 | fcvt.w.s a0, fa0, rtz 移位|
+|     | i32 | fcvt.w.s a0, fa0, rtz|
+|     | i64 | fcvt.l.s a0, fa0, rtz|
+|     | u8  | fcvt.wu.s a0, fa0, rtz 移位|
+|     | u16 | fcvt.wu.s a0, fa0, rtz 移位|
+|     | u32 | fcvt.wu.s a0, fa0, rtz|
+|     | u64 | fcvt.lu.s a0, fa0, rtz|
+|     | f64 | fcvt.d.s fa0, fa0|
+| f64 | i8  | fcvt.w.d a0, fa0, rtz 移位|
+|     | i16 | fcvt.w.d a0, fa0, rtz 移位|
+|     | i32 | fcvt.w.d a0, fa0, rtz|
+|     | i64 | fcvt.l.d a0, fa0, rtz|
+|     | u8  | fcvt.wu.d a0, fa0, rtz 移位|
+|     | u16 | fcvt.wu.d a0, fa0, rtz 移位|
+|     | u32 | fcvt.wu.d a0, fa0, rtz|
+|     | u64 | fcvt.lu.d a0, fa0, rtz|
+| f64 | f32 | fcvt.s.d fa0, fa0|

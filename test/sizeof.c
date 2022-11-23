@@ -101,6 +101,11 @@ int main() {
   // [133] 在一些表达式中用long或ulong替代int
   ASSERT(1, sizeof(char) << 31 >> 31);
   ASSERT(1, sizeof(char) << 63 >> 63);
+
+  // [140] 支持float和double用于局部变量或类型转换
+  ASSERT(4, sizeof(float));
+  ASSERT(8, sizeof(double));
+  
   printf("OK\n");
   return 0;
 }

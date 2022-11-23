@@ -93,6 +93,7 @@ static Node *CurrentSwitch;
 // functionDefinition = declarator ("{" compoundStmt | ";" )
 // global-variable = (declarator( "=" GVarinitializer)?)?("," declarator("=" GVarinitializer)?)* ";"
 // declspec =  ("void" | "_Bool" | "char" | "short" | "int" |"long" 
+//            | "float" | "double"
 //            | "typedef" | "static" | "extern"
 //            | "_Alignas" ("(" typename | constExpr ")")
 //            | "signed" | "unsigned"
@@ -459,7 +460,7 @@ static char *getIdent(Token *Tok) {
 // 判断是否为类型名
 static bool isTypename(Token *Tok) {
   static char *Kw[] = {
-      "void", "_Bool", "char", "short", "int", "long", "struct", "union", "typedef", "enum", "static", "extern","_Alignas", "signed", "unsigned", "const", "volatile", "auto", "register", "restrict", "__restrict", "__restrict__", "_Noreturn",
+      "void", "_Bool", "char", "short", "int", "long", "struct", "union", "typedef", "enum", "static", "extern","_Alignas", "signed", "unsigned", "const", "volatile", "auto", "register", "restrict", "__restrict", "__restrict__", "_Noreturn","float", "double",
   };
 
   for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I) {
@@ -526,6 +527,7 @@ static Type *typename(Token **Rest, Token *Tok) {
 }
 
 // declspec =  ("void" | "_Bool" | "char" | "short" | "int" |"long" 
+//            | "float" | "double"
 //            | "typedef" | "static" | "extern"
 //            | "_Alignas" ("(" typename | constExpr ")")
 //            | "signed" | "unsigned"
@@ -543,9 +545,11 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
     SHORT = 1 << 6,
     INT   = 1 << 8,
     LONG  = 1 << 10,
-    OTHER = 1 << 12,
-    SIGNED = 1 << 13,
-    UNSIGNED = 1 << 14,
+    FLOAT = 1 << 12,
+    DOUBLE = 1 << 14,
+    OTHER = 1 << 16,
+    SIGNED = 1 << 17,
+    UNSIGNED = 1 << 18,
   };
 
   Type *Ty = TyInt;
@@ -629,6 +633,10 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
       Counter += INT;
     else if (equal(Tok, "long"))
       Counter += LONG;
+    else if (equal(Tok, "float"))
+      Counter += FLOAT;
+    else if (equal(Tok, "double"))
+      Counter += DOUBLE;
     else if (equal(Tok, "signed"))
       Counter |= SIGNED;
     else if (equal(Tok, "unsigned"))
@@ -686,6 +694,12 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
     case UNSIGNED + LONG + LONG:
     case UNSIGNED + LONG + LONG + INT:
       Ty = TyULong;
+      break;
+    case FLOAT:
+      Ty = TyFloat;
+      break;
+    case DOUBLE:
+      Ty = TyDouble;
       break;
     default:
       errorTok(Tok, "invalid type");
