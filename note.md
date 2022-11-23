@@ -4109,3 +4109,33 @@ static void pushArgs(Node *Args) {
     }
 
 ```
+
+### 145 允许使用浮点数定义函数
+将`__va_area__`位置放后面, params中不再含有这个, 只能在变量中找到
+
+- codegen.c
+计数器换惩两个, 判断
+```c
+// 记录整型寄存器，浮点寄存器使用的数量
+  int GP = 0, FP = 0;
+  for (Obj *Var = Fn->Params; Var; Var = Var->Next) {
+    if (isFloNum(Var->Ty)) {
+      printLn("  # 将浮点形参%s的浮点寄存器fa%d的值压栈", Var->Name, FP);
+      storeFloat(FP++, Var->Offset, Var->Ty->Size);
+    } else {
+      printLn("  # 将浮点形参%s的整型寄存器a%d的值压栈", Var->Name, GP);
+      storeGeneral(GP++, Var->Offset, Var->Ty->Size);
+    }
+  }
+  // 可变参数
+  if (Fn->VaArea) {
+    // 可变参数存入__va_area__，注意最多为7个
+    int Offset = Fn->VaArea->Offset;
+    while (GP < 8) {
+      printLn("  # 可变参数，相对%s的偏移量为%d", Fn->VaArea->Name,
+              Offset - Fn->VaArea->Offset);
+      storeGeneral(GP++, Offset, 8);
+      Offset += 8;
+    }
+  }
+```
