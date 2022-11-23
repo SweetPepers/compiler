@@ -4042,3 +4042,70 @@ i = i-1 ==> 0
     return;
 ```
 
+### 144 允许使用浮点数使用调用函数
+将参数一个一个pop到通用寄存器和浮点寄存器上, 顺序分开算
+比如 `int a, float b `  a => a0, b => fa0
+```c
+// 将函数实参计算后压入栈中
+static void pushArgs(Node *Args) {
+  // 参数为空直接返回
+  if (!Args)
+    return;
+
+  // 递归到最后一个实参进行
+  pushArgs(Args->Next);
+
+  printLn("\n  # 对%s表达式进行计算, 然后压栈",
+          isFloNum(Args->Ty) ? "浮点" : "整型");
+  // 计算出表达式
+  genExpr(Args);
+  // 根据表达式结果的类型进行压栈
+  if (isFloNum(Args->Ty)) {
+    pushF();
+  } else {
+    push();
+  }
+  printLn("  # 结束压栈");
+}
+
+
+
+
+  // 函数调用
+  case ND_FUNCALL: {
+    // 计算所有参数的值，正向压栈
+    pushArgs(Nd->Args);
+
+    // 反向弹栈，a0->参数1，a1->参数2……
+    int GP = 0, FP = 0;
+    // 读取函数形参中的参数类型
+    Type *CurArg = Nd->FuncType->Params;
+    for (Node *Arg = Nd->Args; Arg; Arg = Arg->Next) {
+      // 如果是可变参数函数
+      // 匹配到空参数（最后一个）的时候，将剩余的整型寄存器弹栈
+      if (Nd->FuncType->IsVariadic && CurArg == NULL) {
+        if (GP < 8) {
+          printLn("  # a%d传递可变实参", GP);
+          pop(GP++);
+        }
+        continue;
+      }
+
+      CurArg = CurArg->Next;
+      if (isFloNum(Arg->Ty)) {
+        if (FP < 8) {
+          printLn("  # fa%d传递浮点参数", FP);
+          popF(FP++);
+        } else if (GP < 8) {
+          printLn("  # a%d传递浮点参数", GP);
+          pop(GP++);
+        }
+      } else {
+        if (GP < 8) {
+          printLn("  # a%d传递整型参数", GP);
+          pop(GP++);
+        }
+      }
+    }
+
+```
