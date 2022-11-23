@@ -4139,3 +4139,9 @@ static void pushArgs(Node *Args) {
     }
   }
 ```
+
+### 146 为float实现默认实参提升
+没有形参类型, float默认提升为double  
+
+// [146] 为float实现默认实参提升  
+ASSERT(0, ({ char buf[100]; sprintf(buf, "%.1f", (float)3.5); strcmp(buf, "3.5"); }));
