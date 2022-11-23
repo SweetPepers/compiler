@@ -4009,3 +4009,36 @@ static void popF(char *Reg) {
 Numeric : 数字 等价于 number
 
 用加了f指令替换原指令 `fneg.%s, fadd.%s, fsub.%s, fmul.%s, fdiv.%s`
+
+### 143 浮点数的bool相关 if while do ! ?: || &&
+
+之前把定义变量的部分删掉了, 导致死循环
+load又忘了加回来了
+
+CRUX BUG
+```c
+i-- ==> -1
+i = i-1 ==> 0
+--i ==> 0
+
+// load:
+  case TY_FLOAT:
+    printLn("  # 访问a0中存放的地址,取得的值存入fa0");
+    printLn("  flw fa0, 0(a0)");
+    return;
+  case TY_DOUBLE:
+    printLn("  # 访问a0中存放的地址,取得的值存入fa0");
+    printLn("  fld fa0, 0(a0)");
+    return;
+
+// store
+  case TY_FLOAT:
+    printLn("  # 将fa0的值, 写入到a1中存放的地址");
+    printLn("  fsw fa0, 0(a1)");
+    return;
+  case TY_DOUBLE:
+    printLn("  # 将fa0的值, 写入到a1中存放的地址");
+    printLn("  fsd fa0, 0(a1)");
+    return;
+```
+
