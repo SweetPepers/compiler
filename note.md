@@ -3980,3 +3980,27 @@ metic operations and holds the accrued exception flags, as shown in Figure 8.2.
 |     | u32 | fcvt.wu.d a0, fa0, rtz|
 |     | u64 | fcvt.lu.d a0, fa0, rtz|
 | f64 | f32 | fcvt.s.d fa0, fa0|
+
+
+### 141 支持浮点数的 == != < <=
+float对应s(single)后缀，double对应d(double)后缀  
+
+浮点数用到的指令和寄存器与正常的都不同
+```c
+// 对于浮点类型进行压栈
+static void pushF(void) {
+  printLn("  # 压栈, 将fa0的值存入栈顶");
+  printLn("  addi sp, sp, -8");
+  printLn("  fsd fa0, 0(sp)");
+  Depth++;
+}
+
+// 对于浮点类型进行弹栈
+static void popF(char *Reg) {
+  printLn("  # 弹栈, 将栈顶的值存入%s", Reg);
+  printLn("  fld %s, 0(sp)", Reg);
+  printLn("  addi sp, sp, 8");
+  Depth--;
+}
+```
+仿照整型的处理方式, 用加上f的指令重写一遍`feq.%s fneq.%s flt.%s fle.%s`, 其中`%s`为 `s/d`指明单精度双精度
