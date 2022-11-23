@@ -4004,3 +4004,8 @@ static void popF(char *Reg) {
 }
 ```
 仿照整型的处理方式, 用加上f的指令重写一遍`feq.%s fneq.%s flt.%s fle.%s`, 其中`%s`为 `s/d`指明单精度双精度
+
+### 142 浮点数的 + - * / 取负-
+Numeric : 数字 等价于 number
+
+用加了f指令替换原指令 `fneg.%s, fadd.%s, fsub.%s, fmul.%s, fdiv.%s`

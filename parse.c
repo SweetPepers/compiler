@@ -2102,7 +2102,7 @@ static Node *newAdd(Node *LHS, Node *RHS, Token *Tok) {
   addType(RHS);
 
   // num + num
-  if (isInteger(LHS->Ty) && isInteger(RHS->Ty))
+  if (isNumeric(LHS->Ty) && isNumeric(RHS->Ty))
     return newBinary(ND_ADD, LHS, RHS, Tok);
 
   // 不能解析 ptr + ptr
@@ -2130,7 +2130,7 @@ static Node *newSub(Node *LHS, Node *RHS, Token *Tok) {
   addType(RHS);
 
   // num - num
-  if (isInteger(LHS->Ty) && isInteger(RHS->Ty))
+  if (isNumeric(LHS->Ty) && isNumeric(RHS->Ty))
     return newBinary(ND_SUB, LHS, RHS, Tok);
 
   // ptr - num  ==>  ptr - 8*num
