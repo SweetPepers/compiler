@@ -3868,4 +3868,70 @@ TODO 回头再说
 另外对除函数参数解析之外的地方, 检查Ty->Name, 没有则报错
 
 
+# 浮点数
+### 139 支持浮点常量
+CRUX 库函数
+```c
+// The strchr() function returns a pointer to the first occurrence of the character c in the string s.
+// RETURN VALUE NULL if the character is not  found.
+char *strchr(const char *s, int c);  
 
+// The  strtod(),  strtof(), and strtold() functions convert the initial portion of the string pointed to by nptr 
+// to double, float, and long double representation, respectively.
+double strtod(const char *nptr, char **endptr);
+float strtof(const char *nptr, char **endptr);
+long double strtold(const char *nptr, char **endptr);
+```
+
+几种浮点数形式:
+- .5
+- 5.
+- 8f
+- 5.l -> double
+
+使用之前的接口判断小数点前的数, 如果后面接着`.eEfF`中的任一个字符`strchr()`, 重新按照浮点数判断`strtod()`
+
+在`parse:primary()`判断一下TK_NUM的类型 选择用`int64_t val`还是`double Fval`赋值
+
+代码生成:
+将各种类型的数存到同一个位置
+```c
+union {
+  float F32;
+  double F64;
+  uint32_t U32;
+  uint64_t U64;
+} U;
+```
+riscv-spec-v2.2:P58 P52  
+> For RV64 only, instructions are provided to move bit patterns between the floating-point and
+integer registers. FMV.X.D moves the double-precision value in floating-point register rs1 to a
+representation in IEEE 754-2008 standard encoding in integer register rd. FMV.D.X moves the
+double-precision value encoded in IEEE 754-2008 standard encoding from the integer register rs1
+to the floating-point register rd.
+
+> Instructions are provided to move bit patterns between the floating-point and integer registers.
+FMV.X.W moves the single-precision value in floating-point register rs1 represented in IEEE 754-
+2008 encoding to the lower 32 bits of integer register rd.
+For RV64, the higher 32 bits of the
+destination register are filled with copies of the floating-point number’s sign bit. FMV.W.X moves
+the single-precision value encoded in IEEE 754-2008 standard encoding from the lower 32 bits of
+integer register rs1 to the floating-point register rd. The bits are not modified in the transfer, and
+in particular, the payloads of non-canonical NaNs are preserved.
+
+浮点类型的riscv代码:
+```armasm
+FLOAT:
+li a0, Nd->FVal
+fmv.w.x fa0, a0  
+
+DOUBLE:
+li a0, Nd->FVal
+fmv.d.x fa0, a0
+```
+32位例子:  
+加载完整的32位立即数到寄存器: 用两条指令   将 0x12345678存到x15寄存器
+```armasm
+lui x15, 0x12345
+addi x15, x15, 0x678 
+```
