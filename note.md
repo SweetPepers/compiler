@@ -4186,3 +4186,6 @@ static double evalDouble(Node *Nd) {
   }
 }
 ```
+
+### 149 long double
+等价于double
