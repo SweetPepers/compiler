@@ -4189,3 +4189,9 @@ static double evalDouble(Node *Nd) {
 
 ### 149 long double
 等价于double
+
+### 150 stage2构建
+
+rsicv-linux-gcc 不行, 链接一直报错
+
+本质上是用rvcc编译每个rvcc的源文件, 后续步骤通过成熟的编译器构建一个新版的rvcc(stage2/rvcc), 再用stage2/rvcc去跑测试
