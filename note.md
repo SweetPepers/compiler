@@ -4145,3 +4145,44 @@ static void pushArgs(Node *Args) {
 
 // [146] 为float实现默认实参提升  
 ASSERT(0, ({ char buf[100]; sprintf(buf, "%.1f", (float)3.5); strcmp(buf, "3.5"); }));
+
+### 147 浮点数常量表达式
+```c
+// 解析浮点表达式
+static double evalDouble(Node *Nd) {
+  addType(Nd);
+
+  // 处理是整型的情况
+  if (isInteger(Nd->Ty)) {
+    if (Nd->Ty->IsUnsigned)
+      return (unsigned long)eval(Nd);
+    return eval(Nd);
+  }
+
+  switch (Nd->Kind) {
+  case ND_ADD:
+    return evalDouble(Nd->LHS) + evalDouble(Nd->RHS);
+  case ND_SUB:
+    return evalDouble(Nd->LHS) - evalDouble(Nd->RHS);
+  case ND_MUL:
+    return evalDouble(Nd->LHS) * evalDouble(Nd->RHS);
+  case ND_DIV:
+    return evalDouble(Nd->LHS) / evalDouble(Nd->RHS);
+  case ND_NEG:
+    return -evalDouble(Nd->LHS);
+  case ND_COND:
+    return evalDouble(Nd->Cond) ? evalDouble(Nd->Then) : evalDouble(Nd->Els);
+  case ND_COMMA:
+    return evalDouble(Nd->RHS);
+  case ND_CAST:
+    if (isFloNum(Nd->LHS->Ty))
+      return evalDouble(Nd->LHS);
+    return eval(Nd->LHS);
+  case ND_NUM:
+    return Nd->FVal;
+  default:
+    errorTok(Nd->Tok, "not a compile-time constant");
+    return -1;
+  }
+}
+```
