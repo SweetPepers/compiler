@@ -4330,3 +4330,15 @@ assignLVarOffsets(Obj *Prog)
   add t0, fp, t0
   sd a0, 0(t0)
 ```
+### 153 支持为函数指针进行常规算术转换
+就把单独的函数需要的时候直接当成指针
+```c
+(1 ? ret10 : (void *)0)()
+
+// type:getCommonType():
+  // 为函数指针进行常规算术转换
+  if (Ty1->Kind == TY_FUNC)
+    return pointerTo(Ty1);
+  if (Ty2->Kind == TY_FUNC)
+    return pointerTo(Ty2);
+```

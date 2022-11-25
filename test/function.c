@@ -124,6 +124,9 @@ int (*fnptr(int (*fn)(int n, ...)))(int, ...) {
 // [152] 在函数参数中退化函数为指针
 int param_decay2(int x()) { return x(); }
 
+// [153] 支持为函数指针进行常规算术转换
+static int ret10(void) { return 10; }
+
 int main() {
   // [25] 支持零参函数定义
   ASSERT(3, ret3());
@@ -221,6 +224,8 @@ int main() {
   // [152] 在函数参数中退化函数为指针
   ASSERT(3, param_decay2(ret3));
 
+  // [153] 支持为函数指针进行常规算术转换
+  ASSERT(10, (1 ? ret10 : (void *)0)());
   printf("OK\n");
   return 0;
 }
