@@ -4257,3 +4257,76 @@ int (*fnptr(int (*fn)(int n, ...)))(int, ...) {
 }
 ```
 输入参数为 `int (*fn)(int n, ...)`, 返回类型为`int (*)(int n, ...)`类型函数指针的函数, 名为fnptr  
+
+
+### 152 在函数参数中退化函数为指针
+函数参数是不能传函数类型的参数的, 所以将函数的参数退化为指针
+  
+编译阶段出错的, 不是运行阶段出错的  
+```c
+// 函数的N, Align都为0, 除零错误  loating point exception 浮点数异常
+// 对齐到Align的整数倍
+int alignTo(int N, int Align) {
+  // (0,Align]返回Align
+  return (N + Align - 1) / Align * Align;
+}
+```
+函数用ND_VAR存储, 然后调用链为: `genExpr():case FUNCALL->pushArgs()->genExpr():case VAR->genaddr()`   
+从压栈开始就错了  
+就算能往后走, 因为没有size字段, 所以storeGeneral中也会错 , 下面白写一堆了, 先不删了, 也算思考过程?哈哈啥
+
+
+
+在genaddr中要看var中的字段
+```c
+    case ND_VAR:
+      if(Nd->Var->IsLocal){
+        // 偏移量是相对于fp的    
+        printLn("  # 获取局部变量%s的栈内地址为%d(fp)", Nd->Var->Name, Nd->Var->Offset);
+        printLn("  li t0, %d", Nd->Var->Offset);
+        printLn("  add a0, fp, t0");
+      }else{ // 全局变量 or 函数
+        printLn("  # 获取%s%s的地址", Nd->Ty->Kind == TY_FUNC ? "函数" : "全局变量", Nd->Var->Name);
+        printLn("  la a0, %s", Nd->Var->Name);  // 全局变量存放在符号表中, data段
+      }
+      return;
+```
+
+函数的参数会存入 parmas中, 后续会全部压入locals中, 也就是按照局部变量去解析, 但是函数类型啥也没有
+```c
+// 函数类型，并赋返回类型
+Type *funcType(Type *ReturnTy) {
+  Type *Ty = calloc(1, sizeof(Type));
+  Ty->Kind = TY_FUNC;
+  Ty->ReturnTy = ReturnTy;
+  return Ty;
+}
+
+// 将形参添加到Locals
+static void createParamLVars(Type *Param) {
+  if (Param) {
+    // 递归到形参最底部
+    // 先将最底部的加入Locals中，之后的都逐个加入到顶部，保持顺序不变
+    createParamLVars(Param->Next);
+    if (!Param->Name)
+      errorTok(Param->NamePos, "parameter name omitted");
+    // 添加到Locals中
+    newLVar(getIdent(Param->Name), Param);
+  }
+}
+
+// 最后计算没有意义的offset, 然后调整跳转没意义的地址
+
+assignLVarOffsets(Obj *Prog)
+// 因为TY_FUNC没有size
+```
+
+函数调用: 将所有的参数值压入栈中,然后一一pop到a0,a1,a2等等,然后call  
+
+```armasm
+  # 将整数形参x的整型寄存器a0的值压栈
+  # 将a0寄存器的值存入-8(fp)的栈地址
+  li t0, -8
+  add t0, fp, t0
+  sd a0, 0(t0)
+```

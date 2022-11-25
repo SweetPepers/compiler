@@ -26,6 +26,9 @@ static int count(void) {
 
 // 对齐到Align的整数倍
 int alignTo(int N, int Align) {
+  if (Align == 0){
+    error("error type");
+  }
   // (0,Align]返回Align
   return (N + Align - 1) / Align * Align;
 }
@@ -1055,7 +1058,7 @@ void genFun(Obj *Fn){
       printLn("  # 将浮点形参%s的浮点寄存器fa%d的值压栈", Var->Name, FP);
       storeFloat(FP++, Var->Offset, Var->Ty->Size);
     } else {
-      printLn("  # 将浮点形参%s的整型寄存器a%d的值压栈", Var->Name, GP);
+      printLn("  # 将整数形参%s的整型寄存器a%d的值压栈", Var->Name, GP);
       storeGeneral(GP++, Var->Offset, Var->Ty->Size);
     }
   }

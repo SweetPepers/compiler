@@ -887,6 +887,7 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
     // param = declspec declarator
     if (Cur != &Head)
       Tok = skip(Tok, ",");
+    // ... 
     if (equal(Tok, "...")){
       IsVariadic = true;
       Tok = Tok->Next;
@@ -894,10 +895,14 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
     }
     Type *BaseTy = declspec(&Tok, Tok, NULL); // int
     Type *DeclarTy = declarator(&Tok, Tok, BaseTy); // int ***  []
+      // 存储名称
+    Token *Name = DeclarTy->Name;
     // T类型的数组被转换为T*
     if (DeclarTy->Kind == TY_ARRAY){
-      Token *Name = DeclarTy->Name;
       DeclarTy = pointerTo(DeclarTy->Base);
+      DeclarTy->Name = Name;
+    }else if (DeclarTy->Kind == TY_FUNC){
+      DeclarTy = pointerTo(DeclarTy);
       DeclarTy->Name = Name;
     }
 
