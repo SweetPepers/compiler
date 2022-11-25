@@ -4195,3 +4195,65 @@ static double evalDouble(Node *Nd) {
 rsicv-linux-gcc 不行, 链接一直报错
 
 本质上是用rvcc编译每个rvcc的源文件, 后续步骤通过成熟的编译器构建一个新版的rvcc(stage2/rvcc), 再用stage2/rvcc去跑测试
+
+### 151 函数指针
+吐了 优先级忘记加括号了, debug了半天
+```c
+  if ( Fn->Ty->Kind != TY_FUNC && 
+      (Fn->Ty->Kind != TY_PTR || Fn->Ty->Base->Kind != TY_FUNC))
+```
+
+```c
+
+// postfix = "(" typeName ")" "{" initializerList "}"
+//         = ident "(" funcArgs ")" postfixTail*   # ident提到前面了
+//         | primary postfixTail*
+// postfixTail = "[" expr "]"
+//             | "(" funcArgs ")"
+//             | "." ident
+//             | "->" ident
+//             | "++"
+//             | "--"
+// primary = "(" "{" stmt+ "}" ")"
+//         | "(" expr ")"
+//         | "sizeof" "(" typeName ")"
+//         | "sizeof" unary
+//         | "_Alignof" "(" typeName ")"
+//         | "_Alignof" unary
+//         | ident
+//         | str
+//         | num
+// typeName = declspec abstractDeclarator
+// abstractDeclarator = pointers ("(" abstractDeclarator ")")? typeSuffix
+
+// funcall = (assign ("," assign)*)? ")"
+```
+
+primary只解析变量的部分(函数名)
+
+funcall通过节点去找函数名, 而不是通过FuncName, `rvcc.h`删除了该成员
+
+函数指针: 传入funcall的Fn要么是一个函数类型(TY_FUNC)的变量, 要么是一个指向函数类型的指针(Ty->kind == TY_PTR && Ty->base == TY_FUNC)
+
+- codegen.c
+通过jalr取代call, 如下:
+```armasm
+call funcName
+
+la a0, funcName
+mv t0, a0
+jalr t0
+```
+
+funcName 为 `Nd->Var->Name`, 函数被存为全局变量, 直接通过标签可以找到
+
+如何解析这个函数?
+
+带括号的declarator都是把括号以外的所有东西当作base传入括号内的下一次解析
+```c
+// [151] 支持函数指针
+int (*fnptr(int (*fn)(int n, ...)))(int, ...) {
+  return fn;
+}
+```
+输入参数为 `int (*fn)(int n, ...)`, 返回类型为`int (*)(int n, ...)`类型函数指针的函数, 名为fnptr  

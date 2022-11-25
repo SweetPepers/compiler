@@ -160,20 +160,27 @@ static Node *CurrentSwitch;
 //       | ("++" | "--") unary
 //       | postfix
 // postfix = "(" typeName ")" "{" initializerList "}"
-//         | primary ("[" expr "]" | "." ident)* | "->" ident | "++" | "--")*
+//         = ident "(" funcArgs ")" postfixTail*
+//         | primary postfixTail*
+// postfixTail = "[" expr "]"
+//             | "(" funcArgs ")"
+//             | "." ident
+//             | "->" ident
+//             | "++"
+//             | "--"
 // primary = "(" "{" stmt+ "}" ")"
 //         | "(" expr ")"
 //         | "sizeof" "(" typeName ")"
 //         | "sizeof" unary
 //         | "_Alignof" "(" typeName ")"
 //         | "_Alignof" unary
-//         | ident funcArgs?
+//         | ident
 //         | str
 //         | num
 // typeName = declspec abstractDeclarator
 // abstractDeclarator = pointers ("(" abstractDeclarator ")")? typeSuffix
 
-// funcall = ident "(" (assign ("," assign)*)? ")"
+// funcall = (assign ("," assign)*)? ")"
 static bool isTypename(Token *Tok);
 static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr);
 static Type *typename(Token **Rest, Token *Tok);
@@ -217,7 +224,7 @@ static Type *unionDecl(Token **Rest, Token *Tok);
 static Node *unary(Token **Rest, Token *Tok);
 static Node *postfix(Token **Rest, Token *Tok);
 static Node *primary(Token **Rest, Token *Tok);
-static Node *funCall(Token **Rest, Token *Tok);
+static Node *funCall(Token **Rest, Token *Tok, Node *Fn);
 static Token *parseTypedef(Token *Tok, Type *BaseTy);
 static bool isFunction(Token *Tok);
 static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr);
@@ -2512,7 +2519,13 @@ static Node *newIncDec(Node *Nd, Token *Tok, int Addend) {
 }
 
 // postfix = "(" typeName ")" "{" initializerList "}"
-//         | primary ("[" expr "]" | "." ident)* | "->" ident | "++" | "--")*
+//         | primary postfixTail*
+// postfixTail = "[" expr "]"
+//             | "(" funcArgs ")"
+//             | "." ident
+//             | "->" ident
+//             | "++"
+//             | "--"
 static Node *postfix(Token **Rest, Token *Tok) {
 
   // "(" typeName ")" "{" initializerList "}"
@@ -2539,7 +2552,13 @@ static Node *postfix(Token **Rest, Token *Tok) {
   // primary
   Node *Nd = primary(&Tok, Tok);  //primary(Rest, Tok);  rest之后在末尾会使用
 
-  // ("[" expr "]" | "." ident)*
+  // primary postfixTail*
+  // postfixTail = "[" expr "]"
+  //             | "(" funcArgs ")"
+  //             | "." ident
+  //             | "->" ident
+  //             | "++"
+  //             | "--"
   while (true) {
     // "[" expr "]"
     if (equal(Tok, "[")) {
@@ -2548,6 +2567,13 @@ static Node *postfix(Token **Rest, Token *Tok) {
       Node *Idx = expr(&Tok, Tok->Next);
       Tok = skip(Tok, "]");
       Nd = newUnary(ND_DEREF, newAdd(Nd, Idx, Start), Start);
+      continue;
+    }
+
+    // ident "(" funcArgs ")"
+    // 匹配到函数调用
+    if (equal(Tok, "(")) {
+      Nd = funCall(&Tok, Tok->Next, Nd);
       continue;
     }
 
@@ -2566,13 +2592,13 @@ static Node *postfix(Token **Rest, Token *Tok) {
       Tok = Tok->Next->Next;
       continue;
     }
-
+    // ++ 
     if (equal(Tok, "++")) {
       Nd = newIncDec(Nd, Tok, 1);
       Tok = Tok->Next;
       continue;
     }
-
+    // --
     if (equal(Tok, "--")) {
       Nd = newIncDec(Nd, Tok, -1);
       Tok = Tok->Next;
@@ -2591,7 +2617,7 @@ static Node *postfix(Token **Rest, Token *Tok) {
 //         | "sizeof" unary
 //         | "_Alignof" "(" typeName ")"
 //         | "_Alignof" unary
-//         | ident funcArgs?
+//         | ident
 //         | str
 //         | num
 static Node *primary(Token **Rest, Token *Tok) {
@@ -2629,27 +2655,22 @@ static Node *primary(Token **Rest, Token *Tok) {
     return Nd;
   }
 
-  // ident args?
+  // ident
   if (Tok->Kind == TK_IDENT){
-    // 函数调用
-    // args = "(" ")"
-    if (equal(Tok->Next, "(")) { // 下一个为 "(", 当前是 标识符
-      return funCall(Rest, Tok);
-    }
     // 查找变量（或枚举常量）
     VarScope *S = findVar(Tok);
-    // 如果变量（或枚举常量）不存在，就在链表中新增一个变量
-    if(!S || (!S->Var && !S->EnumTy)){
-      errorTok(Tok, "undefined variable");
-    }
-    Node *Nd;
-    if(S->Var){
-      Nd = newVarNode(S->Var, Tok);
-    }else{
-      Nd = newNum(S->EnumVal, Tok);
-    }
     *Rest = Tok->Next;
-    return Nd;
+
+    if (S){
+      if(S->Var){ // 变量
+        return newVarNode(S->Var, Tok);
+      }else  // 否则为枚举类型 S->EnumTy
+        return newNum(S->EnumVal, Tok);
+    }
+    // 没找到
+    if (equal(Tok->Next, "("))
+      errorTok(Tok, "implicit declaration of a function");
+    errorTok(Tok, "undefined variable");
   }
 
   // "sizeof" "(" typeName ")"
@@ -2714,20 +2735,17 @@ static Token *parseTypedef(Token *Tok, Type *BaseTy) {
 }
 
 // 解析函数调用
-// funcall = ident "(" (assign ("," assign)*)? ")"
-static Node *funCall(Token **Rest, Token *Tok) {
-  Token *Start = Tok;
-  Tok = Tok->Next->Next;  // ident "(" 
+// funcall = (assign ("," assign)*)? ")"
+static Node *funCall(Token **Rest, Token *Tok, Node *Fn) {
+  addType(Fn);
 
-  // 查找函数名
-  VarScope *S = findVar(Start);
-  if (!S)
-    errorTok(Start, "implicit declaration of a function");
-  if (!S->Var || S->Var->Ty->Kind != TY_FUNC)
-    errorTok(Start, "not a function");
+  // 检查函数指针
+  if ( Fn->Ty->Kind != TY_FUNC && 
+      (Fn->Ty->Kind != TY_PTR || Fn->Ty->Base->Kind != TY_FUNC))
+    errorTok(Fn->Tok, "not a function");
 
-  // 函数名的类型
-  Type *Ty = S->Var->Ty;
+  // 处理函数的类型设为非指针的类型
+  Type *Ty = (Fn->Ty->Kind == TY_FUNC) ? Fn->Ty : Fn->Ty->Base;
   // 函数形参的类型
   Type *ParamTy = Ty->Params;
 
@@ -2760,9 +2778,7 @@ static Node *funCall(Token **Rest, Token *Tok) {
 
   *Rest = skip(Tok, ")");
 
-  Node *Nd = newNode(ND_FUNCALL, Start);
-  // ident
-  Nd->FuncName = strndup(Start->Loc, Start->Len);
+  Node *Nd = newUnary(ND_FUNCALL, Fn, Tok);
   // 函数类型
   Nd->FuncType = Ty;
   // 读取的返回类型

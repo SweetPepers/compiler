@@ -84,9 +84,6 @@ short short_fn();
 // [128] 增加__va_area__以支持可变参数函数
 typedef void *va_list;
 
-// [129] 设置空参函数调用为可变的
-int nullParam() { return 123; }
-
 int sprintf(char *buf, char *fmt, ...);
 int vsprintf(char *buf, char *fmt, va_list ap);
 
@@ -94,6 +91,9 @@ char *fmt(char *buf, char *fmt, ...) {
   va_list ap = __va_area__;
   vsprintf(buf, fmt, ap);
 }
+
+// [129] 设置空参函数调用为可变的
+int nullParam() { return 123; }
 
 // [131] 支持无符号整型
 unsigned char uchar_fn();
@@ -114,6 +114,11 @@ float add_float3(float x, float y, float z) {
 
 double add_double3(double x, double y, double z) {
   return x + y + z;
+}
+
+// [151] 支持函数指针
+int (*fnptr(int (*fn)(int n, ...)))(int, ...) {
+  return fn;
 }
 
 int main() {
@@ -203,6 +208,12 @@ int main() {
 
   // [147] 支持可变参数函数使用浮点数实参
   ASSERT(0, ({ char buf[100]; fmt(buf, "%.1f", (float)3.5); strcmp(buf, "3.5"); }));
+
+  printf("\n[151] 支持函数指针\n");
+  ASSERT(5, (add2)(2, 3));
+  ASSERT(5, (&add2)(2,3));
+  ASSERT(7, ({ int (*fn)(int,int) = add2; fn(2,5); }));
+  ASSERT(6, fnptr(add_all)(3, 1, 2, 3));
 
   printf("OK\n");
   return 0;
