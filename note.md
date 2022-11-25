@@ -4342,3 +4342,57 @@ assignLVarOffsets(Obj *Prog)
   if (Ty2->Kind == TY_FUNC)
     return pointerTo(Ty2);
 ```
+
+### 154 从编译器中分离出cc1
+fork一个子进程, 将参数复制, 重新运行自己  
+但写法值得学习  
+复制参数:
+```c
+// 开辟子进程
+static void runSubprocess(char **Argv) {
+  // 打印出子进程所有的命令行参数
+  if (OptHashHashHash) {
+    // 程序名
+    fprintf(stderr, "%s", Argv[0]);
+    // 程序参数
+    for (int I = 1; Argv[I]; I++)
+      fprintf(stderr, " %s", Argv[I]);
+    // 换行
+    fprintf(stderr, "\n");
+  }
+
+  // Fork–exec模型
+  // 创建当前进程的副本，这里开辟了一个子进程
+  // 返回-1表示错位，为0表示成功
+  if (fork() == 0) {
+    // 执行文件rvcc，没有斜杠时搜索环境变量，此时会替换子进程
+    execvp(Argv[0], Argv);
+    // 如果exec函数返回，表明没有正常执行命令
+    fprintf(stderr, "exec failed: %s: %s\n", Argv[0], strerror(errno));
+    _exit(1);
+  }
+
+  // 父进程， 等待子进程结束
+  int Status;
+  while (wait(&Status) > 0)
+    ;
+  // 处理子进程返回值
+  if (Status != 0)
+    exit(1);
+}
+
+// 执行调用cc1程序
+// 因为rvcc自身就是cc1程序
+// 所以调用自身，并传入-cc1参数作为子进程
+static void runCC1(int Argc, char **Argv) {
+  // 多开辟10个字符串的位置，用于传递需要新传入的参数
+  char **Args = calloc(Argc + 10, sizeof(char *));
+  // 将传入程序的参数全部写入Args
+  memcpy(Args, Argv, Argc * sizeof(char *));
+  // 在选项最后新加入"-cc1"选项
+  Args[Argc++] = "-cc1";
+  // 运行自身作为子进程，同时传入选项
+  runSubprocess(Args);
+}
+
+```
