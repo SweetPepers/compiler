@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <libgen.h>
 
 // 宏展开函数
 // 括号是为了保证内部表达式作为整体去求值
@@ -36,6 +37,14 @@ typedef struct Relocation Relocation;
 // 字符串
 //
 
+// 字符串数组
+typedef struct {
+  char **Data;  // 数据内容
+  int Capacity; // 能容纳字符串的容量
+  int Len;      // 当前字符串的数量，Len ≤ Capacity
+} StringArray;
+
+void strArrayPush(StringArray *Arr, char *S);
 char *format(char *Fmt, ...);
 //
 // 终结符分析，词法分析

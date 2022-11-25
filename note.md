@@ -4396,3 +4396,7 @@ static void runCC1(int Argc, char **Argv) {
 }
 
 ```
+
+### 155 使用 -S时调用as
+将汇编器集成到程序中, 而不是使用命令行  
+main函数好多linux相关的, 好好看吧

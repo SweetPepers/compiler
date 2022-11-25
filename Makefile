@@ -25,10 +25,10 @@ TESTS=$(TEST_SRCS:.c=.exe)
 
 # 测试标签，运行测试
 test/%.exe: rvcc test/%.c
-	$(CC) -o- -E -P -C test/$*.c | ./rvcc -o test/$*.s -
+	$(CC) -o- -E -P -C test/$*.c | ./rvcc -o test/$*.o -
 # riscv64-linux-gnu-gcc -o- -E -P -C test/$*.c | ./rvcc -o test/$*.s -
 # $(CC) -static -o $@ test/$*.s -xc test/common
-	riscv64-linux-gnu-gcc -static -o $@ test/$*.s -xc test/common
+	riscv64-linux-gnu-gcc -static -o $@ test/$*.o -xc test/common
 
 run/%: test/%.exe
 	qemu-riscv64 -L $(RISCV)/sysroot test/$*.exe || exit 1
@@ -44,26 +44,27 @@ test: $(TESTS)
 # Stage 2
 
 # 此时构建的stage2/rvcc是RISC-V版本的，跟平台无关
+
 # stage2的汇编编译为可重定位文件
-stage2/%.o: stage2/%.s
-	riscv64-linux-gnu-gcc -c stage2/$*.s -o stage2/$*.o  
-# 垃圾编译器 链接都做不到
+# stage2/%.o: stage2/%.s
+# 	riscv64-linux-gnu-gcc -c stage2/$*.s -o stage2/$*.o  
+# # 垃圾编译器 链接都做不到
 
 stage2/rvcc: $(OBJS:%=stage2/%)
 	riscv64-linux-gnu-gcc -o $@ $^ $(LDFLAGS)
 
 # 利用stage1的rvcc去将rvcc的源代码编译为stage2的汇编文件
-stage2/%.s: rvcc self.py %.c
+stage2/%.o: rvcc self.py %.c
 	mkdir -p stage2/test
 	./self.py rvcc.h $*.c > stage2/$*.c
-	./rvcc -o stage2/$*.s stage2/$*.c
+	./rvcc -o stage2/$*.o stage2/$*.c
 
 
 # 利用stage2的rvcc去进行测试
 stage2/test/%.exe: stage2/rvcc test/%.c
 	mkdir -p stage2/test
-	$(CC) -o- -E -P -C test/$*.c | ./stage2/rvcc -o stage2/test/$*.s -
-	riscv64-linux-gnu-gcc -static -o $@ stage2/test/$*.s -xc test/common
+	$(CC) -o- -E -P -C test/$*.c | ./stage2/rvcc -o stage2/test/$*.o -
+	riscv64-linux-gnu-gcc -static -o $@ stage2/test/$*.o -xc test/common
 
 test-stage2: $(TESTS:test/%=stage2/test/%)
 	for i in $^; do echo $$i; qemu-riscv64 -L $(RISCV)/sysroot ./$$i || exit 1; echo; done
