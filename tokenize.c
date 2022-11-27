@@ -308,7 +308,7 @@ static Token *readCharLiteral(char *Start) {
 }
 
 // 将keyword的终结符转为KEYWORD
-static void convertKeywords(Token *Tok) {
+void convertKeywords(Token *Tok) {
   for (Token *T = Tok; T->Kind != TK_EOF; T = T->Next) {  
     if (isKeyword(T))
       T->Kind = TK_KEYWORD;
@@ -536,8 +536,6 @@ Token *tokenize(char *Filename, char *P) {
   Cur->Next = newToken(TK_EOF, P, P);
   // 为所有Token添加行号
   addLineNumbers(Head.Next);
-  // 将所有关键字的终结符，都标记为KEYWORD
-  convertKeywords(Head.Next);
   // Head无内容，所以直接返回Next
   return Head.Next;
 }

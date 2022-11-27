@@ -10,6 +10,7 @@ add_executable( rvcc
   parse.c
   type.c
   codegen.c
+  process.c
 )
 
 # 编译参数
