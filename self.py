@@ -20,6 +20,14 @@ extern FILE *stderr;
 struct stat {
   char _[512];
 };
+
+typedef struct {
+  size_t gl_pathc;
+  char **gl_pathv;
+  size_t gl_offs;
+  char _[512];
+} glob_t;
+
 typedef void* va_list;
 void *malloc(long size);
 void *calloc(long nmemb, long size);
@@ -35,6 +43,10 @@ int fclose(FILE *fp);
 int fputc(int c, FILE *stream);
 int feof(FILE *stream);
 static void assert() {}
+int glob(char *pattern, int flags, void *errfn, glob_t *pglob);
+void globfree(glob_t *pglob);
+int stat(char *pathname, struct stat *statbuf);
+char *dirname(char *path);
 int strcmp(char *s1, char *s2);
 int strncasecmp(char *s1, char *s2, long n);
 int memcmp(char *s1, char *s2, long n);

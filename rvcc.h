@@ -11,8 +11,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <glob.h>
 #include <strings.h>
 #include <math.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>

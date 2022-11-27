@@ -25,7 +25,7 @@ TESTS=$(TEST_SRCS:.c=.exe)
 
 # 测试标签，运行测试
 test/%.exe: rvcc test/%.c
-	$(CC) -o- -E -P -C test/$*.c | ./rvcc -o test/$*.o -
+	$(CC) -o- -E -P -C test/$*.c | ./rvcc -c -o test/$*.o -
 # riscv64-linux-gnu-gcc -o- -E -P -C test/$*.c | ./rvcc -o test/$*.s -
 # $(CC) -static -o $@ test/$*.s -xc test/common
 	riscv64-linux-gnu-gcc -static -o $@ test/$*.o -xc test/common
@@ -57,13 +57,13 @@ stage2/rvcc: $(OBJS:%=stage2/%)
 stage2/%.o: rvcc self.py %.c
 	mkdir -p stage2/test
 	./self.py rvcc.h $*.c > stage2/$*.c
-	./rvcc -o stage2/$*.o stage2/$*.c
+	./rvcc -c -o stage2/$*.o stage2/$*.c
 
 
 # 利用stage2的rvcc去进行测试
 stage2/test/%.exe: stage2/rvcc test/%.c
 	mkdir -p stage2/test
-	$(CC) -o- -E -P -C test/$*.c | ./stage2/rvcc -o stage2/test/$*.o -
+	$(CC) -o- -E -P -C test/$*.c | ./stage2/rvcc -c -o stage2/test/$*.o -
 	riscv64-linux-gnu-gcc -static -o $@ stage2/test/$*.o -xc test/common
 
 test-stage2: $(TESTS:test/%=stage2/test/%)
