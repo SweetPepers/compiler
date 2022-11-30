@@ -7,6 +7,9 @@ static char *CurrentFilename;
 // 输入的字符串
 static char *CurrentInput;
 
+// 位于行首时为真
+static bool AtBOL;
+
 // 输出错误信息
 // static文件内可以访问的函数
 // Fmt为传入的字符串， ... 为可变参数，表示Fmt后面所有的参数
@@ -121,6 +124,9 @@ static Token *newToken(TokenKind Kind, char *Start, char *End) {
   Tok->Kind = Kind;
   Tok->Loc = Start;
   Tok->Len = End - Start;
+  // 读取是否为行首，然后设置为false
+  Tok->AtBOL = AtBOL;
+  AtBOL = false;
   return Tok;
 }
 
@@ -319,11 +325,14 @@ void convertKeywords(Token *Tok) {
 static void addLineNumbers(Token *Tok) {
   char *P = CurrentInput;
   int N = 1;
+  // int lastN = 0;
 
   do {
     if (P == Tok->Loc) {
       Tok->LineNo = N;
       Tok = Tok->Next;
+      // Tok->AtBOL = N == lastN ? false: true;
+      // lastN = N;
     }
     if (*P == '\n')
       N++;
@@ -455,7 +464,17 @@ Token *tokenize(char *Filename, char *P) {
   Token Head = {};
   Token *Cur = &Head;
 
+  // 文件开始设置为行首
+  AtBOL = true;
+
   while (*P) {
+    // 匹配换行符，设置为行首
+    if (*P == '\n') {
+      P++;
+      AtBOL = true;
+      continue;
+    }
+
     // 跳过所有空白符如：空格、回车
     if (isspace(*P)) {
       ++P;
@@ -584,6 +603,28 @@ static char *readFile(char *Path) {
   fputc('\0', Out);
   fclose(Out);
   return Buf;
+}
+
+static char *tokenStringLiteral(char *Loc, int len) {
+  // 读取到字符串字面量的右引号
+  char *End = Loc + len;
+  // 定义一个与字符串字面量内字符数+1的Buf
+  // 用来存储最大位数的字符串字面量
+  char *Buf = calloc(1, len+1);
+  // 实际的字符位数，一个转义字符为1位
+  int Len = 0;
+
+  // 将读取后的结果写入Buf
+  for (char *P = Loc; P < End;) {
+      Buf[Len++] = *P++;
+  }
+  return Buf;
+}
+
+void debugToken(Token *Tok){
+  for (; Tok && Tok->Kind != TK_EOF;Tok = Tok->Next){
+    printf("%s\t", tokenStringLiteral(Tok->Loc, Tok->Len));
+  }
 }
 
 // 对文件进行词法分析

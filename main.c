@@ -3,7 +3,7 @@
 // 【注意】
 // 如果是交叉编译，请把这个路径改为$RISCV对应的路径
 // 注意 ~ 应替换为具体的 /home/用户名 的路径
-static char *RVPath = "";
+static char *RVPath = "/home/";
 
 // -S选项
 static bool OptS;
@@ -335,10 +335,11 @@ static void runLinker(StringArray *Inputs, char *Output) {
   strArrayPush(&Arr, "elf64lriscv");
   strArrayPush(&Arr, "-dynamic-linker");
 
-  char *LP64D =
-      strlen(RVPath)
-          ? format("%s/sysroot/lib/ld-linux-riscv64-lp64d.so.1", RVPath)
-          : "/lib/ld-linux-riscv64-lp64d.so.1";
+  // char *LP64D =
+  //     strlen(RVPath)
+  //         ? format("%s/sysroot/lib/ld-linux-riscv64-lp64d.so.1", RVPath)
+  //         : "/lib/ld-linux-riscv64-lp64d.so.1";
+  char *LP64D = format("%s/sysroot/lib/ld-linux-riscv64-lp64d.so.1", RVPath);
   strArrayPush(&Arr, LP64D);
 
   char *LibPath = findLibPath();

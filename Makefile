@@ -30,6 +30,12 @@ test/%.exe: rvcc test/%.c
 # $(CC) -static -o $@ test/$*.s -xc test/common
 	riscv64-linux-gnu-gcc -static -o $@ test/$*.o -xc test/common
 
+# 只使用rvcc进行宏的测试
+test/macro.exe: rvcc test/macro.c
+	./rvcc -c -o test/macro.o test/macro.c
+	riscv64-linux-gnu-gcc -o $@ test/macro.o -xc test/common
+#	$(RISCV)/bin/riscv64-unknown-linux-gnu-gcc -o $@ test/macro.o -xc test/common
+
 run/%: test/%.exe
 	qemu-riscv64 -L $(RISCV)/sysroot test/$*.exe || exit 1
 
@@ -65,6 +71,12 @@ stage2/test/%.exe: stage2/rvcc test/%.c
 	mkdir -p stage2/test
 	$(CC) -o- -E -P -C test/$*.c | ./stage2/rvcc -c -o stage2/test/$*.o -
 	riscv64-linux-gnu-gcc -static -o $@ stage2/test/$*.o -xc test/common
+
+# 只使用stage2的rvcc进行宏的测试
+stage2/test/macro.exe: stage2/rvcc test/macro.c
+	mkdir -p stage2/test
+	./stage2/rvcc -c -o stage2/test/macro.o test/macro.c
+	riscv64-linux-gnu-gcc -o $@ stage2/test/macro.o -xc test/common
 
 test-stage2: $(TESTS:test/%=stage2/test/%)
 	for i in $^; do echo $$i; qemu-riscv64 -L $(RISCV)/sysroot ./$$i || exit 1; echo; done
