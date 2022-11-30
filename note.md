@@ -4495,3 +4495,8 @@ for (int I = 0; Files[I]; I++)
 ```
 
 `fprintf(Out, ".file 1 \"%s\"\n", BaseFile);` 这句话删掉, 之前是默认一个文件, 在文件首部先放个这个
+
+### 161 跳过 #include "..."后面的多余终结符
+
+TODO : va_start  va_end
+
