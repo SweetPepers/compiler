@@ -1,6 +1,9 @@
 ​	shell 别有事没事加空格
 
 fprintf(stderr, "%*s", Pos, "");   打印了pos個空格
+
+[gcc使用](https://www.runoob.com/w3cnote/gcc-parameter-detail.html)
+`- static`:禁止使用动态库
 ### 4 token流 构造
 
 ```c
@@ -4549,3 +4552,28 @@ Token *skipCondIncl(Token *Tok); // 递归跳到else 或者 endif
 Token *skipCondIncl2(Token *Tok); // 递归跳到endif, 假的if, 则要直接跳到endif 
 
 ```
+
+### 166 #elif
+加一个 IN_ELIF, 注意跳过
+
+
+```c
+    // 匹配#elif
+    if (equal(Tok, "elif")) {
+      if (!CondIncls || CondIncls->Ctx == IN_ELSE)  // else 里面不能出现else
+        errorTok(Start, "stray #elif");
+      CondIncls->Ctx = IN_ELIF;
+      long Val = evalConstExpr(&Tok, Tok);
+
+      // 处理之前有值为真的情况，则#else全部跳过
+      if (CondIncls->Included || !Val)
+        Tok = skipCondIncl(Tok);
+      else
+        CondIncls->Included = true;
+      continue;
+    }
+```
+
+
+
+

@@ -5,10 +5,10 @@
 // conditional inclusion
 typedef struct CondIncl CondIncl;
 struct CondIncl {
-  CondIncl *Next;                // 下一个
-  enum { IN_THEN, IN_ELSE } Ctx; // 类型
-  Token *Tok;                    // 对应的终结符
-  bool Included;                 // 是否被包含
+  CondIncl *Next;                         // 下一个
+  enum { IN_THEN, IN_ELIF, IN_ELSE } Ctx; // 类型
+  Token *Tok;                             // 对应的终结符
+  bool Included;                          // 是否被包含
 };
 
 // 全局的#if保存栈
@@ -89,8 +89,8 @@ static Token *skipCondIncl(Token *Tok) {
       continue;
     }
 
-    // #else和#endif
-    if (isHash(Tok) && (equal(Tok->Next, "else") || equal(Tok->Next, "endif")))
+    // #else, #endif和#elif
+    if (isHash(Tok) && (equal(Tok->Next, "else") || equal(Tok->Next, "endif") || equal(Tok->Next, "elif")))
       break;
     Tok = Tok->Next;
   }
@@ -205,6 +205,21 @@ static Token *preprocess2(Token *Tok) {
       // 处理#if后值为假的情况，全部跳过
       if (!Val)
         Tok = skipCondIncl(Tok);
+      continue;
+    }
+
+    // 匹配#elif
+    if (equal(Tok, "elif")) {
+      if (!CondIncls || CondIncls->Ctx == IN_ELSE)  // else 里面不能出现else
+        errorTok(Start, "stray #elif");
+      CondIncls->Ctx = IN_ELIF;
+      long Val = evalConstExpr(&Tok, Tok);
+
+      // 处理之前有值为真的情况，则#else全部跳过
+      if (CondIncls->Included || !Val)
+        Tok = skipCondIncl(Tok);
+      else
+        CondIncls->Included = true;
       continue;
     }
 

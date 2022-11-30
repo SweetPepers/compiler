@@ -26,7 +26,7 @@ TESTS=$(TEST_SRCS:.c=.exe)
 # 只使用rvcc进行宏的测试
 test/macro.exe: rvcc test/macro.c
 	./rvcc -c -o test/macro.o test/macro.c
-	riscv64-linux-gnu-gcc -o $@ test/macro.o -xc test/common
+	riscv64-linux-gnu-gcc -static -o $@ test/macro.o -xc test/common
 #	$(RISCV)/bin/riscv64-unknown-linux-gnu-gcc -o $@ test/macro.o -xc test/common
 
 # 测试标签，运行测试
