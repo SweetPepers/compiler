@@ -4514,3 +4514,38 @@ TODO : va_start  va_end
 ### 164 跳过#if值为假时的嵌套if
 do nothing, 上节自己做了, 我真是个天才
 
+### 165 #else
+递归的魅力
+
+```c
+struct CondIncl {
+  CondIncl *Next;                // 下一个
+  enum { IN_THEN, IN_ELSE } Ctx; // 类型
+  Token *Tok;                    // 对应的终结符
+  bool Included;                 // 是否被包含
+};
+
+// Included 为if后面计算的值, 设置此值判断#else后面的语句是否有效, 无效则跳到#endif
+    // 匹配#else
+    if (equal(Tok, "else")) {
+      if (!CondIncls || CondIncls->Ctx == IN_ELSE)  // else 里面不能出现else
+        errorTok(Start, "stray #else");
+      CondIncls->Ctx = IN_ELSE;
+      // 走到行首
+      Tok = skipLine(Tok->Next);
+
+      // 处理之前有值为真的情况，则#else全部跳过
+      if (CondIncls->Included)
+        Tok = skipCondIncl(Tok);
+      continue;
+    }
+```
+
+两个跳
+
+```c
+Token *skipCondIncl(Token *Tok); // 递归跳到else 或者 endif
+
+Token *skipCondIncl2(Token *Tok); // 递归跳到endif, 假的if, 则要直接跳到endif 
+
+```

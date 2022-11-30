@@ -23,18 +23,18 @@ TESTS=$(TEST_SRCS:.c=.exe)
 
 # Stage 1
 
+# 只使用rvcc进行宏的测试
+test/macro.exe: rvcc test/macro.c
+	./rvcc -c -o test/macro.o test/macro.c
+	riscv64-linux-gnu-gcc -o $@ test/macro.o -xc test/common
+#	$(RISCV)/bin/riscv64-unknown-linux-gnu-gcc -o $@ test/macro.o -xc test/common
+
 # 测试标签，运行测试
 test/%.exe: rvcc test/%.c
 	$(CC) -o- -E -P -C test/$*.c | ./rvcc -c -o test/$*.o -
 # riscv64-linux-gnu-gcc -o- -E -P -C test/$*.c | ./rvcc -o test/$*.s -
 # $(CC) -static -o $@ test/$*.s -xc test/common
 	riscv64-linux-gnu-gcc -static -o $@ test/$*.o -xc test/common
-
-# 只使用rvcc进行宏的测试
-test/macro.exe: rvcc test/macro.c
-	./rvcc -c -o test/macro.o test/macro.c
-	riscv64-linux-gnu-gcc -o $@ test/macro.o -xc test/common
-#	$(RISCV)/bin/riscv64-unknown-linux-gnu-gcc -o $@ test/macro.o -xc test/common
 
 run/%: test/%.exe
 	qemu-riscv64 -L $(RISCV)/sysroot test/$*.exe || exit 1
