@@ -345,6 +345,8 @@ Type *structType(void);
 // 函数类型
 Type *funcType(Type *ReturnTy);
 
+// 解析常量表达式
+int64_t constExpr(Token **Rest, Token *Tok);
 // 类型转换，将表达式的值转换为另一种类型
 Node *newCast(Node *Expr, Type *Ty);
 // 语法解析入口函数

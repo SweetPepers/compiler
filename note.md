@@ -4500,5 +4500,14 @@ for (int I = 0; Files[I]; I++)
 
 TODO : va_start  va_end
 
-### 162 支持-E选项
+### 162 支持-E选项 
 -E就是打印预处理后的代码?
+
+
+### 163 支持 #if 和 #endif
+碰到`#if cond`, 将cond通过`copyLine()`copy送给`constExpr()`函数解析, 并根据计算结果val选择:
+- false:跳过直到相匹配的`#endif`
+- true:啥也不干, 翻译出来
+
+注意#endif 后面可能加没用的东西, 用`skipLine()`到下一行
+
