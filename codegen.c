@@ -397,7 +397,7 @@ static void pushArgs(Node *Args) {
 // 生成表达式
 static void genExpr(Node *Nd) {
   // .loc 文件编号 行号
-  printLn("  .loc 1 %d", Nd->Tok->LineNo);
+  printLn("  .loc %d %d", Nd->Tok->File->FileNo,Nd->Tok->LineNo);
   // 生成各个根节点
   switch (Nd->Kind) {
   // 空表达式
@@ -812,7 +812,7 @@ static void genExpr(Node *Nd) {
 // 生成语句
 static void genStmt(Node *Nd) {
   // .loc 文件编号 行号
-  printLn("  .loc 1 %d", Nd->Tok->LineNo);
+  printLn("  .loc %d %d", Nd->Tok->File->FileNo, Nd->Tok->LineNo);
   switch(Nd->Kind){
     // 生成for / while循环语句
     case ND_FOR: {
@@ -1162,6 +1162,12 @@ void emitText(Obj *Prog) {
 void codegen(Obj *Prog, FILE *out){
   // 设置目标文件的文件流指针
   OutputFile = out;
+
+  // 获取所有的输入文件，并输出.file指示
+  File **Files = getInputFiles();
+  for (int I = 0; Files[I]; I++)
+    printLn("  .file %d \"%s\"", Files[I]->FileNo, Files[I]->Name);
+  
   // 计算局部变量的偏移量
   assignLVarOffsets(Prog);
   // 生成数据

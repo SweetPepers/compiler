@@ -61,6 +61,13 @@ typedef enum {
   TK_EOF,     // 文件终止符，即文件的最后
 } TokenKind;
 
+// 文件
+typedef struct {
+  char *Name;     // 文件名
+  int FileNo;     // 文件编号，从1开始
+  char *Contents; // 文件内容
+} File;
+
 // parse.c
 // 终结符结构体
 
@@ -74,6 +81,7 @@ struct Token {
   Type *Ty;       // TK_STR TK_NUM 使用
   char *Str;      // 字符串字面量, 包括'\0';
 
+  File *File; // 源文件位置
   int LineNo; // 行号
   bool AtBOL; // 终结符在行首（begin of line）时为true
 };
@@ -92,6 +100,8 @@ bool consume(Token **Rest, Token *Tok, char *Str);
 Token *tokenizeFile(char *Path);
 // 转换关键字
 void convertKeywords(Token *Tok);
+// 获取输入文件
+File **getInputFiles(void);
 
 // 指rvcc源文件的某个文件的某一行出了问题，打印出文件名和行号
 #define unreachable() error("internal error at %s:%d", __FILE__, __LINE__)
@@ -346,6 +356,13 @@ Obj *parse(Token *Tok);
 void codegen(Obj *Prog, FILE *out);
 // 对齐
 int alignTo(int N, int Align);
+
+
+//
+// 主程序，驱动文件
+//
+
+extern char *BaseFile;
 
 
 // debug

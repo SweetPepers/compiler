@@ -4434,3 +4434,64 @@ bug出现在这里, 空白符直接跳过去了, 根本没机会解析行首, �
     }
 
 ```
+
+### 160 支持`#include "..."`
+```c
+// 文件
+typedef struct {
+  char *Name;     // 文件名
+  int FileNo;     // 文件编号，从1开始
+  char *Contents; // 文件内容
+} File;
+```
+
+Token中添加file结构体
+
+系统库函数:
+```c
+#include <libgen.h>
+// dirname() returns the string up to, but not including, the final '/', 
+// and  basename()  returns  the component following the final '/'
+char *dirname(char *path);
+
+char *basename(char *path);
+```
+
+将Tok2放入Tok1的尾部  
+`static Token *append(Token *Tok1, Token *Tok2)`  
+include中的文件放在前面  
+```c
+    if (equal(Tok, "include")) {
+      // 跳过"
+      Tok = Tok->Next;
+
+      // 需要后面跟文件名
+      if (Tok->Kind != TK_STR)
+        errorTok(Tok, "expected a filename");
+
+      // 以当前文件所在目录为起点
+      // 路径为：终结符文件名所在的文件夹路径/当前终结符名
+      char *Path = format("%s/%s", dirname(strdup(Tok->File->Name)), Tok->Str);
+      // 词法解析文件
+      Token *Tok2 = tokenizeFile(Path);
+      if (!Tok2)
+        errorTok(Tok, "%s", strerror(errno));
+      // 将Tok2接续到Tok->Next的位置
+      Tok = append(Tok2, Tok->Next);
+      continue;
+    }
+```
+
+代码生成部分因为含有多个输入文件, 也要用如下格式分隔开:
+```c
+// 语句, 表达式
+printLn("  .loc %d %d", Nd->Tok->File->FileNo,Nd->Tok->LineNo);
+
+// 程序开始时:
+// 获取所有的输入文件，并输出.file指示
+File **Files = getInputFiles();
+for (int I = 0; Files[I]; I++)
+  printLn("  .file %d \"%s\"", Files[I]->FileNo, Files[I]->Name);
+```
+
+`fprintf(Out, ".file 1 \"%s\"\n", BaseFile);` 这句话删掉, 之前是默认一个文件, 在文件首部先放个这个
