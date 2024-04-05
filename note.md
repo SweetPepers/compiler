@@ -4662,3 +4662,18 @@ static bool expandMacro(Token **Rest, Token *Tok) {
   Token *Body = addHideset(M->Body, Hs);
   *Rest = append(Body, Tok->Next);
 ```
+
+### 171 #ifdef 和 #ifndef
+这连个也要配合 #endif使用，所以在递归跳跃中添加此两个TOKEN
+```c
+  skipCondIncl2 && skipCondIncl:
+  if (isHash(Tok) && (equal(Tok->Next, "if") || equal(Tok->Next, "ifdef") ||
+                        equal(Tok->Next, "ifndef"))) {
+      Tok = skipCondIncl2(Tok->Next->Next);
+      continue;
+  }
+```
+
+具体处理上，和#if对比，两者处理方式相同
+- if判断后面expr是否为真
+- ifdef和ifndef判断 后面是否有define
