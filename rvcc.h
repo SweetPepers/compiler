@@ -34,6 +34,7 @@ typedef struct Token Token;
 typedef struct Node Node;
 typedef struct Member Member;
 typedef struct Relocation Relocation;
+typedef struct Hideset Hideset;
 
 //
 // 字符串
@@ -81,9 +82,10 @@ struct Token {
   Type *Ty;       // TK_STR TK_NUM 使用
   char *Str;      // 字符串字面量, 包括'\0';
 
-  File *File; // 源文件位置
-  int LineNo; // 行号
-  bool AtBOL; // 终结符在行首（begin of line）时为true
+  File *File;       // 源文件位置
+  int LineNo;       // 行号
+  bool AtBOL;       // 终结符在行首（begin of line）时为true
+  Hideset *Hideset; // 用于宏展开时的隐藏集
 };
 
 // 去除了static用以在多个文件间访问

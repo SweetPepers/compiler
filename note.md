@@ -4649,3 +4649,16 @@ static bool expandMacro(Token **Rest, Token *Tok) {
 
 ### 169 展开#if和#elif中的参数
 #if和#elif有自己的处理语句，但这些语句里面可能含有#define定义的宏，所以递归处理一下
+
+### 170 宏中只展开一次
+每个Token有一个隐藏集
+在expandMacro中展开后，就将此Macro加入到隐藏集中，并继承添加到后面每个Token
+
+在展开宏时，创建了新的body，原来的body被丢弃
+```c
+  // 展开过一次的宏变量，就加入到隐藏集当中
+  Hideset *Hs = hidesetUnion(Tok->Hideset, newHideset(M->Name));
+  // 处理此宏变量之后，传递隐藏集给之后的终结符
+  Token *Body = addHideset(M->Body, Hs);
+  *Rest = append(Body, Tok->Next);
+```
