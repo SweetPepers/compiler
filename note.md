@@ -4677,3 +4677,39 @@ static bool expandMacro(Token **Rest, Token *Tok) {
 具体处理上，和#if对比，两者处理方式相同
 - if判断后面expr是否为真
 - ifdef和ifndef判断 后面是否有define
+
+### 172 支持 #define 零参宏函数
+添加新成员
+Token::bool HasSpace;    // Token前是否有空格 
+Macro::bool IsObjlike;   // 宏变量为真，或者宏函数为假
+
+核心是以下两个的区别
+```c
+#define M7() 1
+#define M7 ()
+```
+添加HasSpace就是区别两种
+
+
+解析 #define 独立为一个函数，根据空格区分IsObjlike
+```c
+// 读取宏定义
+static void readMacroDefinition(Token **Rest, Token *Tok) {
+  // 如果匹配到的不是标识符就报错
+  if (Tok->Kind != TK_IDENT)
+    errorTok(Tok, "macro name must be an identifier");
+  // 复制名字
+  char *Name = strndup(Tok->Loc, Tok->Len);
+  Tok = Tok->Next;
+
+  // 判断是宏变量还是宏函数，括号前没有空格则为宏函数
+  if (!Tok->HasSpace && equal(Tok, "(")) {
+    // 增加宏函数
+    Tok = skip(Tok->Next, ")");
+    addMacro(Name, false, copyLine(Rest, Tok));
+  } else {
+    // 增加宏变量
+    addMacro(Name, true, copyLine(Rest, Tok));
+  }
+}
+```

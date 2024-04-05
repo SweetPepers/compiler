@@ -10,6 +10,9 @@ static File **InputFiles;
 // 位于行首时为真
 static bool AtBOL;
 
+// 终结符前是有空格时为真
+static bool HasSpace;
+
 // 输出错误信息
 // static文件内可以访问的函数
 // Fmt为传入的字符串， ... 为可变参数，表示Fmt后面所有的参数
@@ -138,6 +141,9 @@ static Token *newToken(TokenKind Kind, char *Start, char *End) {
   // 读取是否为行首，然后设置为false
   Tok->AtBOL = AtBOL;
   AtBOL = false;
+  // 读取是否为前面是空格，然后设置为false
+  Tok->HasSpace = HasSpace;
+  HasSpace = false;
   return Tok;
 }
 
@@ -482,18 +488,22 @@ Token *tokenize(File * FP) {
 
   // 文件开始设置为行首
   AtBOL = true;
+  // 文件开始设置为前面没有空格
+  HasSpace = false;
 
   while (*P) {
     // 匹配换行符，设置为行首
     if (*P == '\n') {
       P++;
       AtBOL = true;
+      HasSpace = true;
       continue;
     }
 
     // 跳过所有空白符如：空格、回车
     if (isspace(*P)) {
       ++P;
+      HasSpace = true;
       continue;
     }
 
@@ -502,6 +512,7 @@ Token *tokenize(File * FP) {
       P += 2;
       while (*P != '\n')
         P++;
+      HasSpace = true;
       continue;
     }
 
@@ -512,6 +523,7 @@ Token *tokenize(File * FP) {
       if (!Q)
         errorAt(P, "unclosed block comment");
       P = Q + 2;
+      HasSpace = true;
       continue;
     }
 
