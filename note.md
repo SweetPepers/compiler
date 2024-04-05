@@ -4646,3 +4646,6 @@ static bool expandMacro(Token **Rest, Token *Tok) {
 在Macro后面添加一个节点标记删除
 ！CRUX 为什么不删除原来的？
   - 因为讲究一个前面定义了，前面生效，后面#undef之后才会失效
+
+### 169 展开#if和#elif中的参数
+#if和#elif有自己的处理语句，但这些语句里面可能含有#define定义的宏，所以递归处理一下
