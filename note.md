@@ -4641,3 +4641,8 @@ static bool expandMacro(Token **Rest, Token *Tok) {
   return true;
 }
 ```
+
+### 168 #undef
+在Macro后面添加一个节点标记删除
+！CRUX 为什么不删除原来的？
+  - 因为讲究一个前面定义了，前面生效，后面#undef之后才会失效
