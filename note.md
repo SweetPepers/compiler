@@ -4626,3 +4626,18 @@ int main(){
   pop(0); // LHS
 
 ```
+
+### 167 #define 宏变量
+定义宏Macro
+遇见#define，添加body到Macro
+
+process时， 如果匹配就替换
+```c
+static bool expandMacro(Token **Rest, Token *Tok) {
+  Macro *M = findMacro(Tok);
+  if (!M)
+    return false;
+  *Rest = append(M->Body, Tok->Next);
+  return true;
+}
+```

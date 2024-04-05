@@ -446,7 +446,7 @@ static Token *readNumber(char *Start) {
     return Tok;
 
   // 如果不是整型，那么一定是浮点数
-  free(Tok);  // 刚刚分配的释放掉
+  // free(Tok);  // 刚刚分配的释放掉`
   
   char *End;
   double Val = strtod(Start, &End);
