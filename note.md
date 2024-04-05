@@ -1,4 +1,4 @@
-​	shell 别有事没事加空格
+	shell 别有事没事加空格
 
 fprintf(stderr, "%*s", Pos, "");   打印了pos個空格
 
@@ -1853,7 +1853,7 @@ static Token *parseTypedef(Token *Tok, Type *BaseTy) {
 ```c
 
 // 一个 typedef struct a b进来 do
-// 1. 设置Attr->IsTypedef = trye
+// 1. 设置Attr->IsTypedef = true
 // 2. 返回 strcut a 的baseTy
 static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
   // 类型的组合，被表示为例如：LONG+LONG=1<<9
@@ -2829,7 +2829,7 @@ LVarInitializer
   - 初始化器不会产生任何语法树相关的内容(比如变量表, 赋值等)
 - 根据初始化器指派(designate)赋值
   复合类型:`createLVarInit()` 基本类型:`initDesigExpr`
-  - Desig存储着每层每个(伪)变量的信息, 比如A[2][3]一共三层
+  - Desig存储着每层每个(伪)变量的信息, 比如A\[2]\[3]一共三层
 
 因为逗号表达式是两个值, 数组初始化指派中空出来一个, 所以有了空表达式占个位置 ND_NULL_EXPR
 
@@ -3652,7 +3652,7 @@ for (Obj *Var = Fn->Params; Var; Var = Var->Next) {
     }
   }
 }
-``` 
+```
 
 ### 129 设置空参函数调用为可变的
 ```c
@@ -4264,7 +4264,7 @@ int (*fnptr(int (*fn)(int n, ...)))(int, ...) {
 
 ### 152 在函数参数中退化函数为指针
 函数参数是不能传函数类型的参数的, 所以将函数的参数退化为指针
-  
+
 编译阶段出错的, 不是运行阶段出错的  
 ```c
 // 函数的N, Align都为0, 除零错误  loating point exception 浮点数异常
@@ -4575,5 +4575,54 @@ Token *skipCondIncl2(Token *Tok); // 递归跳到endif, 假的if, 则要直接�
 ```
 
 
+### eposide
 
+因为是递归的压入右栈, 导致同优先级运算实际是从右边开始的, 以下输入出现错误
+```c
+  ASSERT(4, ({ int i=2; i + i++ ;})); 
+  ASSERT(5, ({ int i=2; i + ++i ;})); 
+  ASSERT(5, ({ int i=2; i++ + i ;}));
+  ASSERT(6, ({ int i=2; ++i + i ;}));
 
+#include <stdlib.h>
+#include <stdio.h>
+
+int main(){
+  int a = 5;
+  int b = 0;
+  b = a + a--;
+  printf("i + i-- : %d\n", b); // 9
+  a = 5;
+  b = a + --a;
+  printf("i + --i : %d\n", b); // 8
+  a = 5;
+  b =  a-- + a;
+  printf("i-- + i : %d\n", b); // 9
+  a = 5;
+  b = --a + a;
+  printf("--i + i : %d\n", b); // 8
+  a = 5;
+  b = --a + --a;
+  printf("--i + --i : %d\n", b); // 6
+  int i=2; 
+  printf("%d\n",  i + ++i * i++); // 16 
+
+}
+```
+
+将其改为先计算左子树后, 减法、除法这种不满足交换律的又出现错误
+
+解决: 解析表达式时, 先解析左子树, 再解析右子树,然后都压入栈, 然后弹出两次保证左子树在a0, 右子树在a1
+```c
+  // 递归到最右节点
+  genExpr(Nd->LHS);
+  // 将结果压入栈
+  push();
+  // 递归到左节点
+  genExpr(Nd->RHS);
+  push();
+  // 将结果弹栈到a1
+  pop(1); // RHS
+  pop(0); // LHS
+
+```

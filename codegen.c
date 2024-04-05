@@ -667,13 +667,15 @@ static void genExpr(Node *Nd) {
   // 处理浮点类型
   if (isFloNum(Nd->LHS->Ty)) {
     // 递归到最右节点
-    genExpr(Nd->RHS);
+    genExpr(Nd->LHS);
     // 将结果压入栈
     pushF();
     // 递归到左节点
-    genExpr(Nd->LHS);
+    genExpr(Nd->RHS);
+    pushF();
     // 将结果弹栈到fa1
     popF(1);
+    popF(0);
 
     // 生成各个二叉树节点
     // float对应s(single)后缀，double对应d(double)后缀
@@ -718,13 +720,24 @@ static void genExpr(Node *Nd) {
     }
   }
   // 递归到最右节点
-  genExpr(Nd->RHS);
+  genExpr(Nd->LHS);
   // 将结果压入栈
   push();
   // 递归到左节点
-  genExpr(Nd->LHS);
+  genExpr(Nd->RHS);
+  push();
   // 将结果弹栈到a1
-  pop(1);
+  pop(1); // RHS
+  pop(0); // LHS
+
+  //   // 递归到最右节点
+  // genExpr(Nd->RHS);
+  // // 将结果压入栈
+  // push();
+  // // 递归到左节点
+  // genExpr(Nd->LHS);
+  // // 将结果弹栈到a1
+  // pop(1); // RHS
 
   // 生成各个二叉树节点
   char *Suffix = Nd->LHS->Ty->Kind == TY_LONG || Nd->LHS->Ty->Base ? "" : "w";

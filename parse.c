@@ -870,7 +870,7 @@ static Type *typeSuffix(Token **Rest, Token *Tok, Type *Ty) {
 // param = declspec declarator
 static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
   // 封装一个函数节点
-  Ty = funcType(Ty);
+  Ty = funcType(Ty);  //set returnTy
   // "void"
   if (equal(Tok, "void") && equal(Tok->Next, ")")){
     *Rest = Tok->Next->Next;
@@ -1155,7 +1155,7 @@ static void initializer2(Token **Rest, Token *Tok, Initializer *Init) {
       return;
     }else{ // 不存在括号的情况
       Node *Expr = assign(Rest, Tok);
-      addType(Expr);
+      addType(Expr);  // 结构体给结构题赋值
       if (Expr->Ty->Kind == TY_STRUCT) {
         Init->Expr = Expr;
         return;
@@ -1206,10 +1206,10 @@ static Type *copyStructType(Type *Ty) {
 // 初始化器
 static Initializer *initializer(Token **Rest, Token *Tok, Type *Ty, Type **NewTy) {
   // 新建一个解析了类型的初始化器
-  Initializer *Init = newInitializer(Ty, true);
+  Initializer *Init = newInitializer(Ty, true);   // 只有这里为true
   // 解析需要赋值到Init中
   initializer2(Rest, Tok, Init);
-
+  // 灵活结构体在构建之后类型就不再为灵活, 并且可以从初始化器中知道确切的类型
   if ((Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION) && Ty->IsFlexible) {
     // 复制结构体类型
     Ty = copyStructType(Ty); // 不能在原结构体类型上作修改
@@ -2448,6 +2448,7 @@ static Type *structUnionDecl(Token **Rest, Token *Tok) {
         return S->Ty;
       }
     }
+    // not find
     pushTagScope(Tag, Ty);
   }
   return Ty;

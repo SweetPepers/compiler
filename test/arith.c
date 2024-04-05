@@ -71,6 +71,36 @@ int main() {
   ASSERT(0, ({ int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; (*p++)--; a[1]; }));
   ASSERT(2, ({ int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; (*p++)--; a[2]; }));
   ASSERT(2, ({ int a[3]; a[0]=0; a[1]=1; a[2]=2; int *p=a+1; (*p++)--; *p; }));
+  // ASSERT(4, ({ int i=2; i + i++ ;})); 
+  // ASSERT(5, ({ int i=2; i + ++i ;})); 
+  // ASSERT(5, ({ int i=2; i++ + i ;}));
+  // ASSERT(6, ({ int i=2; ++i + i ;}));
+  // ASSERT(9, ({ int i=5; i + i-- ;})); 
+  // ASSERT(8, ({ int i=5; i + --i ;})); 
+  // ASSERT(9, ({ int i=5; i-- + i ;}));
+  // ASSERT(8, ({ int i=5; --i + i ;}));
+  // ASSERT(6, ({ int i=5; --i + --i ;}));
+  ASSERT(11, ({ int i=2; i + ++i * i++;})); // 12 = 4+4*2
+
+/*  
+clang
+i + i-- : 10
+i + --i : 9
+i-- + i : 9
+--i + i : 8
+--i + --i : 7
+11
+*/
+
+/* 
+gcc
+i + i-- : 9
+i + --i : 8
+i-- + i : 9
+--i + i : 8
+--i + --i : 6
+16
+*/
 
   // [81] 支持 ! 操作符
   ASSERT(0, !1);
