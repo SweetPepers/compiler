@@ -4799,6 +4799,37 @@ subst展开:
 
 readMacroArgOne()之前是匹配到一个")"就认为结束了(因为最后一个实参后面是")", `M(4,5)`)
 
+### 176 宏函数中只展开一次
+
+readMacroArgs中返回最后一个")"
+
+```c
+  // 处理宏函数，并连接到Tok之后
+  // 读取宏函数实参，这里是宏函数的隐藏集
+  Token *MacroToken = Tok;
+  MacroArg *Args = readMacroArgs(&Tok, Tok, M->Params);
+// 这里返回的是右括号，这里是宏参数的隐藏集
+  Token *RParen = Tok;
+  // 宏函数间可能具有不同的隐藏集，新的终结符就不知道应该使用哪个隐藏集。
+  // 我们取宏终结符和右括号的交集，并将其用作新的隐藏集。
+  Hideset *Hs = hidesetIntersection(MacroToken->Hideset, RParen->Hideset);
+
+  // 将当前函数名加入隐藏集
+  Hs = hidesetUnion(Hs, newHideset(M->Name));
+  // 替换宏函数内的形参为实参
+  Token *Body = subst(M->Body, Args);
+  // 为宏函数内部设置隐藏集
+  Body = addHideset(Body, Hs);
+  // 将设置好的宏函数内部连接到终结符链表中
+  *Rest = append(Body, Tok->Next);
+```
+
+在递归处理展开后的Token时, 对于宏函数中的每个Tok都有自己的HideSet
+
+// todo 为什么要取交集?
+
+
+
 
 
 
