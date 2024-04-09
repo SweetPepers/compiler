@@ -4713,3 +4713,74 @@ static void readMacroDefinition(Token **Rest, Token *Tok) {
   }
 }
 ```
+
+### 173 支持 #define 多参宏函数 
+```c
+#define M8(x, y) x + y
+M8(3,4); // 7
+
+
+// 宏函数形参
+typedef struct MacroParam MacroParam;
+struct MacroParam {
+  MacroParam *Next; // 下一个
+  char *Name;       // 名称
+};
+
+// 宏函数实参
+typedef struct MacroArg MacroArg;
+struct MacroArg {
+  MacroArg *Next; // 下一个
+  char *Name;     // 名称
+  Token *Tok;     // 对应的终结符链表
+};
+
+```
+
+解析宏定义, 读取形参 `x,y`
+```c
+// readMacroParams
+  while (!equal(Tok, ")")) {
+    if (Cur != &Head)
+      Tok = skip(Tok, ",");
+
+    // 如果不是标识符报错
+    if (Tok->Kind != TK_IDENT)
+      errorTok(Tok, "expected an identifier");
+    // 开辟空间
+    MacroParam *M = calloc(1, sizeof(MacroParam));
+    // 设置名称
+    M->Name = strndup(Tok->Loc, Tok->Len);
+    // 加入链表
+    Cur = Cur->Next = M;
+    Tok = Tok->Next;
+  }
+```
+
+就是链表, 存两个, 一个name,一个next
+
+展开: M(3+4,4) ==> 3+4 + 4
+
+```c
+  MacroArg *Args = readMacroArgs(&Tok, Tok, M->Params);
+  *Rest = append(subst(M->Body, Args), Tok);
+```
+
+
+
+先通过MacroArg结构体, 解析为 (函数`readMacroArgs`)
+
+```c
+{name:x;Tok:3+4}->next->{name:y;Tok:4}
+```
+
+subst展开:
+
+依次查找此Macro带的Args, 然后替换(注意子串同样需要process2处理)
+
+
+
+
+
+
+
