@@ -4861,6 +4861,9 @@ format("%.*s%.*s", LHS->Len, LHS->Loc, RHS->Len, RHS->Loc);  // %.*s:从LHS->Loc
 - 当前为args
   - Arg->Tok->Kind == TK_EOF 代表什么? todo
 
+### 179 使用rvcc自己的兴宏处理而非gcc
+
+
 
 
 
