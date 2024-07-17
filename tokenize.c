@@ -660,7 +660,7 @@ void debugToken(Token *Tok){
 File **getInputFiles(void) { return InputFiles; }
 
 // 新建一个File
-static File *newFile(char *Name, int FileNo, char *Contents) {
+File *newFile(char *Name, int FileNo, char *Contents) {
   File *FP = calloc(1, sizeof(File));
   FP->Name = Name;
   FP->FileNo = FileNo;

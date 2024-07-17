@@ -108,6 +108,11 @@ void convertKeywords(Token *Tok);
 // 获取输入文件
 File **getInputFiles(void);
 
+// 新建一个File
+File *newFile(char *Name, int FileNo, char *Contents);
+// 终结符解析，文件名，文件内容
+Token *tokenize(File *FP);
+
 // 指rvcc源文件的某个文件的某一行出了问题，打印出文件名和行号
 #define unreachable() error("internal error at %s:%d", __FILE__, __LINE__)
 
