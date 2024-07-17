@@ -4846,8 +4846,20 @@ readMacroArgs中返回最后一个")"
 所以这个是干什么的?
 将x中的内容直接转为字符串,开头结尾的空格都会去掉,中间的多个空格会替换为1个
 
-我知道##两个是拼接
+### 178 支持宏 ## 操作符
+```c
+format("%.*s%.*s", LHS->Len, LHS->Loc, RHS->Len, RHS->Loc);  // %.*s:从LHS->Loc开始的LHS->Len长度的字符串
+```
+这还分左右的
 
+- 当前不是args
+  - 右边为args 
+    - 拼接右边的第一个token,然后newfile 重新tokenize
+    - 复制剩余的token
+  - 右边不为args
+    - 直接复制
+- 当前为args
+  - Arg->Tok->Kind == TK_EOF 代表什么? todo
 
 
 
