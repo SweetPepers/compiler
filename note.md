@@ -4871,6 +4871,10 @@ evalConstExpr函数解析 expr替换为 新的函数readConstExpr
 此函数中 查找 defined
 之后在 macro链表中查找, 就将整个`defined M`替换为1或0
 
+### 181 在常量表达式替代遗留的标志符为0
+什么意思?
+就是替换未定义的标识符为0
+
 
 
 
