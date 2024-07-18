@@ -4908,6 +4908,29 @@ abc
 d
 ```
 
+### 184 支持<...>
+```c
+// 区分
+#include "file" // #->include->STR
+#include <file> // #->include-><->token*->>
+```
+第二种因为file中的内容会解析为多个token, 所以要把多个token拼接起来
+
+拼接函数`joinTokens`, 之前是直接拼接到末尾, 但这次默认为>, 所以要加一个拼接范围, `TOK *END`
+
+还有 `#include FOO` 宏定义的情况
+
+```c
+#define M13 "include3.h"
+#include M13
+  ASSERT(3, foo);
+
+#define M13 < include4.h
+#include M13 >
+  ASSERT(4, foo);
+```
+直接丢入`preprocess2`重新处理
+
 
 
 
