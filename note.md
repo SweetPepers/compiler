@@ -4875,6 +4875,20 @@ evalConstExpr函数解析 expr替换为 新的函数readConstExpr
 什么意思?
 就是替换未定义的标识符为0
 
+### 182 宏展开时保留新行和空格
+这个和前面的#不完全一样
+```c
+#define STR(x) #x
+#define M12(x) STR(x)
+#define M13(x) M12(foo.x)
+  ASSERT(0, strcmp(M13(bar), "foo.bar"));
+
+#define M13(x) M12(foo. x)
+  ASSERT(0, strcmp(M13(bar), "foo. bar"));
+```
+token: 不能以`.`结束, 但空格不算token
+foo. x会解析为 foo->.->x
+然后给x记录上前面带空格
 
 
 
