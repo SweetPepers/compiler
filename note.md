@@ -4971,7 +4971,12 @@ else
 fi
 check linker
 ```
+### 186 支持默认引入路径
+在cc1选项中, 将一些路径添加到includePaths中
+`strArrayPush(&IncludePaths, "/usr/local/include");`
 
+### 187 支持#error
+就是预处理的时候遇到`#error`直接报错
 
 
 
