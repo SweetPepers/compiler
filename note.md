@@ -4931,6 +4931,46 @@ d
 ```
 直接丢入`preprocess2`重新处理
 
+### 185 支持 -I\<Dir\>选项
+注意中间没有空格 `-Itest`
+- rvcc.h
+  - 引入路径区 `extern StringArray IncludePaths;`
+- main.c中将-I选项后面的字符串复制进IncludePaths
+
+preprocess2函数中对于**被双引号包裹的路径**优先当前路径中搜索, 若不在则在从includePaths中搜索
+```c
+// 不以"/"开头的视为相对路径
+if (Filename[0] != '/'&& IsDquote) {
+  // 以当前文件所在目录为起点
+  // 路径为：终结符文件名所在的文件夹路径/当前终结符名
+  char *Path =
+      format("%s/%s", dirname(strdup(Start->File->Name)), Filename);
+  // 路径存在时引入文件
+  if (fileExists(Path)) {
+    Tok = includeFile(Tok, Path, Start->Next->Next);
+    continue;
+  }
+}
+
+// 直接引入文件，搜索引入路径
+char *Path = searchIncludePaths(Filename);
+Tok = includeFile(Tok, Path ? Path : Filename, Start->Next->Next);
+continue;
+```
+
+这个会失败, 是因为rvcc现在不能输入字符串了
+```shell
+# [157] 无-c时调用ld
+# 调用链接器
+rm -f $tmp/foo
+echo 'int main() { return 0; }' | $rvcc -o $tmp/foo -
+if [ "$RISCV" = "" ];then
+  $tmp/foo
+else
+  $RISCV/bin/qemu-riscv64 -L $RISCV/sysroot $tmp/foo
+fi
+check linker
+```
 
 
 

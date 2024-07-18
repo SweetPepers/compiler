@@ -5,6 +5,9 @@
 // 注意 ~ 应替换为具体的 /home/用户名 的路径
 static char *RVPath = "/home/";
 
+// 引入路径区
+StringArray IncludePaths;
+
 // -E选项
 static bool OptE;
 // -S选项
@@ -36,7 +39,14 @@ static void usage(int Status) {
 }
 
 // 判断需要一个参数的选项，是否具有一个参数
-static bool takeArg(char *Arg) { return !strcmp(Arg, "-o"); }
+static bool takeArg(char *Arg) {
+  char *X[] = {"-o", "-I"};
+
+  for (int I = 0; I < sizeof(X) / sizeof(*X); I++)
+    if (!strcmp(Arg, X[I]))
+      return true;
+  return false;
+}
 
 // 打开需要写入的文件
 static FILE *openFile(char *Path) {
@@ -100,6 +110,12 @@ static void parseArgs(int Argc, char **Argv) {
     if (strcmp(Argv[I], "-o") == 0) {
       // 目标文件的路径
       OptO = Argv[++I];
+      continue;
+    }
+
+    // 解析-I
+    if (!strncmp(Argv[I], "-I", 2)) {
+      strArrayPush(&IncludePaths, Argv[I] + 2);
       continue;
     }
 
