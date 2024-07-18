@@ -4863,6 +4863,15 @@ format("%.*s%.*s", LHS->Len, LHS->Loc, RHS->Len, RHS->Loc);  // %.*s:从LHS->Loc
 
 ### 179 使用rvcc自己的兴宏处理而非gcc
 
+### 180 支持 defined() 宏操作符
+之前是 #if expr
+现在expr可以是 defined(M) 或者 defined M
+
+evalConstExpr函数解析 expr替换为 新的函数readConstExpr
+此函数中 查找 defined
+之后在 macro链表中查找, 就将整个`defined M`替换为1或0
+
+
 
 
 
