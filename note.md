@@ -5096,6 +5096,37 @@ static Token *lineMacro(Token *Tmpl) {
 后面两个要递归最开始的宏的位置/文件
 比如`define M A+B`又`define A __FIlE__`, 则调用M的时候, 应该打印M的位置/文件
 
+### 190 支持__VA_ARGS__
+```c
+#define M14(...) __VA_ARGS__
+  ASSERT(2, M14() 2);
+  ASSERT(5, M14(5));
+#define M14(x, ...) add6(1,2,x,__VA_ARGS__,6)
+  ASSERT(21, M14(3,4,5));
+``` 
+__VA_ARGS__代表输入的多个参数
+关注函数
+- readMacroDefinition 读取宏定义 #define M14(x, ...) add6(1,2,x,__VA_ARGS__,6)
+  - readMacroParams 读取宏形参 M14(x, ...)
+- readMacroArgs M14(3,4,5)
+  - 根据定义中宏的数量读取
+  - readMacroArgOne 读取单个宏实参, while true 读取剩余所有实参
+参数名字通过`__VA_ARGS__`去找,直接替换多个token
+
+
+eposide pa = pa->next = pb
+```c
+  la = la->next = &b;
+  printf("%p %d\n", la, la->data);
+  printf("%p %d\n", la->next, la->next->data); // setmentation fault la实际上是lb 
+  printf("%p %d\n", a.next, a.next->data);
+```
+因为la已经变成lb, 所以la->next实际上是lb->next, 为非法地址, 所以打印会
+```shell
+0x7ffd18faaa00 0x7ffd18faaa10 0x7ffd18faaa20
+0x7ffd18faaa10 2
+Segmentation fault
+```
 
 
 
