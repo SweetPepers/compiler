@@ -5037,6 +5037,65 @@ static void defineMacro(char *Name, char *Buf) {
 本质 "1" ==> token("1")
 然后调用 addMacro加进去
 
+### 189 支持__FILE__和__LINE__
+Token结构体中 添加Origin, 宏展开前的原始终结符
+```c
+struct Token {
+  TokenKind Kind; // 种类
+  Token *Next;    // 指向下一终结符
+  int64_t Val;    // 值
+  double FVal;    // TK_NUM浮点值
+  char *Loc;      // 在解析的字符串内的位置
+  int Len;        // 长度
+  Type *Ty;       // TK_STR TK_NUM 使用
+  char *Str;      // 字符串字面量, 包括'\0';
+
+  File *File;       // 源文件位置
+  int LineNo;       // 行号
+  bool AtBOL;       // 终结符在行首（begin of line）时为true
+  bool HasSpace;    // Token前是否有空格
+  Hideset *Hideset; // 用于宏展开时的隐藏集
+  Token *Origin;    // 宏展开前的原始终结符
+};
+```
+
+`expandMacro`
+- 如果有宏函数, 那么处理一下
+- 对于里面的每个宏,记录展开前的tok, 比如`#define M a+b`, 则`a->ori = 'M', b->ori = 'M'`
+
+```c
+
+// 增加内建的宏和相应的宏处理函数
+static Macro *addBuiltin(char *Name, macroHandlerFn *Fn) {
+  // 增加宏
+  Macro *M = addMacro(Name, true, NULL);
+  // 设置相应的处理函数
+  M->Handler = Fn;
+  return M;
+}
+
+// 文件标号函数
+static Token *fileMacro(Token *Tmpl) {
+  // 如果存在原始的宏，则遍历后使用原始的宏
+  while (Tmpl->Origin)
+    Tmpl = Tmpl->Origin;
+  // 根据原始宏的文件名构建字符串终结符
+  return newStrToken(Tmpl->File->Name, Tmpl);
+}
+
+// 行标号函数
+static Token *lineMacro(Token *Tmpl) {
+  // 如果存在原始的宏，则遍历后使用原始的宏
+  while (Tmpl->Origin)
+    Tmpl = Tmpl->Origin;
+  // 根据原始的宏的行号构建数值终结符
+  return newNumToken(Tmpl->LineNo, Tmpl);
+}
+```
+第一个函数, 添加原始宏
+后面两个要递归最开始的宏的位置/文件
+比如`define M A+B`又`define A __FIlE__`, 则调用M的时候, 应该打印M的位置/文件
+
 
 
 
