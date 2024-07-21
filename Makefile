@@ -62,10 +62,11 @@ stage2/rvcc: $(OBJS:%=stage2/%)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # 利用stage1的rvcc去将rvcc的源代码编译为stage2的汇编文件
-stage2/%.o: rvcc self.py %.c
+stage2/%.o: rvcc
 	mkdir -p stage2/test
-	./self.py rvcc.h $*.c > stage2/$*.c
-	./rvcc -c -o stage2/$*.o stage2/$*.c
+	# ./self.py rvcc.h $*.c > stage2/$*.c
+	# ./rvcc -c -o stage2/$*.o stage2/$*.c
+	./rvcc -c -o $(@D)/$*.o $*.c
 
 
 # 利用stage2的rvcc去进行测试

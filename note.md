@@ -5169,6 +5169,11 @@ va_end(list) //  执行该宏可以清空可变参数列表
 ```
 没做什么已经支持了
 
+### 197 实现rvcc自举
+删除self.py脚本
+并删除makefile stage2中对此的依赖
+
 ## todo
 - stage2阶段编译
 - 可变参数 196
+- rvcc自举 197
