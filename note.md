@@ -5173,7 +5173,12 @@ va_end(list) //  执行该宏可以清空可变参数列表
 删除self.py脚本
 并删除makefile stage2中对此的依赖
 
+### 198 支持栈传递实参
+codegen.c
+
+
 ## todo
 - stage2阶段编译
 - 可变参数 196
 - rvcc自举 197
+- 这个代码要是写错了, 我怎么debug?
