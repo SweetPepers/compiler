@@ -5136,6 +5136,10 @@ Segmentation fault
       newStringLiteral(Fn->Name, arrayOf(TyChar, strlen(Fn->Name) + 1));
 ```
 
+### 192 支持 __FUNCTION__
+GNU标准
+和上一节相同
+
 
 
 
