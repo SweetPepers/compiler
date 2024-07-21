@@ -5161,5 +5161,14 @@ GNU标准
 ### 195 支持多个头文件
 已经支持
 
+### 196 支持va_arg()
+```c
+#define va_start(list,param1)   ( list = (va_list)&param1+ sizeof(param1) )
+#define va_arg(list,mode)   ( (mode *) ( list += sizeof(mode) ) )[-1]
+va_end(list) //  执行该宏可以清空可变参数列表
+```
+没做什么已经支持了
+
 ## todo
 - stage2阶段编译
+- 可变参数 196
