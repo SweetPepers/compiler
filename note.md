@@ -5127,7 +5127,14 @@ eposide pa = pa->next = pb
 0x7ffd18faaa10 2
 Segmentation fault
 ```
-
+### 191 支持__func__
+在每个function解析中添加__func__变量, 字符类型,当前函数名字
+```c
+// parse.c::function()
+  // __func__被定义为包含当前函数名称的局部变量
+  pushScope("__func__")->Var =
+      newStringLiteral(Fn->Name, arrayOf(TyChar, strlen(Fn->Name) + 1));
+```
 
 
 

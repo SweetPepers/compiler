@@ -2856,6 +2856,11 @@ static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr) {
     Fn->VaArea = newLVar("__va_area__", arrayOf(TyChar, 64)); 
 
   Tok = skip(Tok, "{");
+
+  // __func__被定义为包含当前函数名称的局部变量
+  pushScope("__func__")->Var =
+      newStringLiteral(Fn->Name, arrayOf(TyChar, strlen(Fn->Name) + 1));
+
   // 函数体存储语句的AST，Locals存储变量
   Fn->Body = compoundStmt(&Tok, Tok);
   // addType(Fn->Body);   // TODO CRUX 就tm这一句 卧槽卧槽卧槽   不知道什么时候删了 真特么啥币

@@ -127,6 +127,11 @@ int param_decay2(int x()) { return x(); }
 // [153] 支持为函数指针进行常规算术转换
 static int ret10(void) { return 10; }
 
+// [191] 支持 __func__
+char *func_fn(void) {
+  return __func__;
+}
+
 int main() {
   // [25] 支持零参函数定义
   ASSERT(3, ret3());
@@ -227,5 +232,11 @@ int main() {
   // [153] 支持为函数指针进行常规算术转换
   ASSERT(10, (1 ? ret10 : (void *)0)());
   printf("OK\n");
+
+  printf("[191] 支持 __func__\n");
+  ASSERT(5, sizeof(__func__));
+  ASSERT(0, strcmp("main", __func__));
+  ASSERT(0, strcmp("func_fn", func_fn()));
+  
   return 0;
 }
