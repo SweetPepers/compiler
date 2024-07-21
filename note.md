@@ -5140,6 +5140,12 @@ Segmentation fault
 GNU标准
 和上一节相同
 
+### 193 拼接相邻的字符串
+
+```c
+0 == strcmp("abc" "d" "\nefgh", "abcd\nefgh"));
+```
+这里是预处理阶段做的, 在做完前面的所有步骤之后, 遍历所有的token,要是前后都是str, 则拼接, 在接入原链表
 
 
 
