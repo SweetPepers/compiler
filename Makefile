@@ -9,6 +9,11 @@ OBJS=$(SRCS:.c=.o)
 # 使用math库
 LDFLAGS=-lm
 
+TEST_SRCS=$(wildcard test/*.c)
+TESTS=$(TEST_SRCS:.c=.exe)
+
+# Stage 1
+
 # rvcc标签，表示如何构建最终的二进制文件，依赖于所有的.o文件
 # $@表示目标文件，此处为rvcc，$^表示依赖文件，此处为$(OBJS)
 rvcc: $(OBJS)
@@ -17,11 +22,6 @@ rvcc: $(OBJS)
 
 # 所有的可重定位文件依赖于rvcc.h的头文件
 $(OBJS): rvcc.h
-
-TEST_SRCS=$(wildcard test/*.c)
-TESTS=$(TEST_SRCS:.c=.exe)
-
-# Stage 1
 
 # 只使用rvcc进行宏的测试
 # test/macro.exe: rvcc test/macro.c
@@ -32,7 +32,7 @@ TESTS=$(TEST_SRCS:.c=.exe)
 # 测试标签，运行测试
 test/%.exe: rvcc test/%.c
 #	$(CC) -o- -E -P -C test/$*.c | ./rvcc -c -o test/$*.o -
-	./rvcc -Itest -c -o test/$*.o test/$*.c
+	./rvcc -Iinclude -Itest -c -o test/$*.o test/$*.c
 # riscv64-linux-gnu-gcc -o- -E -P -C test/$*.c | ./rvcc -o test/$*.s -
 # $(CC) -static -o $@ test/$*.s -xc test/common
 	riscv64-linux-gnu-gcc -static -o $@ test/$*.o -xc test/common
@@ -58,19 +58,21 @@ test: $(TESTS)
 # # 垃圾编译器 链接都做不到
 
 stage2/rvcc: $(OBJS:%=stage2/%)
-	riscv64-linux-gnu-gcc -o $@ $^ $(LDFLAGS)
+	# riscv64-linux-gnu-gcc -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # 利用stage1的rvcc去将rvcc的源代码编译为stage2的汇编文件
 stage2/%.o: rvcc self.py %.c
 	mkdir -p stage2/test
 	./self.py rvcc.h $*.c > stage2/$*.c
-	./rvcc -Itest -c -o stage2/$*.o stage2/$*.c
+	./rvcc -c -o stage2/$*.o stage2/$*.c
 
 
 # 利用stage2的rvcc去进行测试
 stage2/test/%.exe: stage2/rvcc test/%.c
 	mkdir -p stage2/test
-	$(CC) -o- -E -P -C test/$*.c | ./stage2/rvcc -c -o stage2/test/$*.o -
+	# $(CC) -o- -E -P -C test/$*.c | ./stage2/rvcc -c -o stage2/test/$*.o -
+	./stage2/rvcc -Iinclude -Itest -c -o stage2/test/$*.o test/$*.c
 	riscv64-linux-gnu-gcc -static -o $@ stage2/test/$*.o -xc test/common
 
 # 只使用stage2的rvcc进行宏的测试
@@ -80,7 +82,9 @@ stage2/test/macro.exe: stage2/rvcc test/macro.c
 	riscv64-linux-gnu-gcc -o $@ stage2/test/macro.o -xc test/common
 
 test-stage2: $(TESTS:test/%=stage2/test/%)
-	for i in $^; do echo $$i; qemu-riscv64 -L $(RISCV)/sysroot ./$$i || exit 1; echo; done
+# for i in $^; do echo $$i; qemu-riscv64 -L $(RISCV)/sysroot ./$$i || exit 1; echo; done
+	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
+	test/driver.sh ./stage2/rvcc
 	test/driver.sh ./stage2/rvcc
 
 
