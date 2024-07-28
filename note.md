@@ -5273,6 +5273,136 @@ int many_args1(int a, int b, int c, int d, int e, int f, int g, int h) {
 `ND_FUNCALL` 解析中会先存满寄存器, 剩下的参数使用栈 198节干的事情
 这一节相当于解析FUNC时, 先从寄存器取, 取满了再从栈取(原本是全从寄存器取)
 
+### 200 支持结构体实参
+```c
+typedef struct {long a;long b;long c;} StTy5_1;
+typedef struct {long a;long b;long c;long d;long e;long f;long g;long h;} StTy5_2;
+
+int struct_type_5_1_test(StTy5_1 x, int n);
+int struct_type_5_2_test(StTy5_2 x, int n);
+```
+之前FUNCALL支持的参数只有整形和浮点型
+
+rvcc.h::struct Type 添加两个成员
+-   Type *FSReg1Ty;  // 浮点结构体的对应寄存器
+-   Type *FSReg2Ty;  // 浮点结构体的对应寄存器
+
+parse.c::funCall 取消对结构体的报错
+
+codegen.c
+```c
+    // 将结构体复制一份到栈中，然后通过寄存器或栈传递被复制结构体的地址
+    // ---------------------------------
+    //             大结构体      ←
+    // --------------------------------- <- t6
+    //      栈传递的   其他变量
+    // ---------------------------------
+    //            大结构体的指针  ↑
+    // --------------------------------- <- sp
+```
+- 添加了BSDepth记录大结构体(大于16字节)的深度
+- genExpr()::ND_FUNCALL
+  - pushArgs
+    - 对于每个参数
+      - setFloStMemsTy  带浮点型的
+        - getFloStMemsTy 递归判定里面的每个基础类型, 若为基础类型，且存在可用寄存器时，填充成员的类型 `if (*Idx < 2) RegsTy[*Idx] = Ty;`
+        - 是否为含有1/2个浮点成员变量的结构体, 判断一下FP和GP的数量, 然后`T->FSReg1Ty = RTy[0]; T->FSReg2Ty = RTy[1];`
+      - 不带浮点型(整型): 9~16字节整型结构体用两个寄存器，其他字节结构体用一个寄存器, GP满了就用栈 
+    - createBSSpace(Args)  这一步对sp减去了所有大结构的大小, 后续移动栈的操作全在`pushArgs2()`中, 所以上图中栈的结构是先入的大结构体
+      ```c
+      static int createBSSpace(Node *Args) {
+        int BSStack = 0;
+        for (Node *Arg = Args; Arg; Arg = Arg->Next) {
+          Type *Ty = Arg->Ty;
+          // 大于16字节的结构体
+          if (Ty->Size > 16 && Ty->Kind == TY_STRUCT) {
+            printLn("  # 大于16字节的结构体, 先开辟相应的栈空间");
+            int Sz = alignTo(Ty->Size, 8);
+            printLn("  addi sp, sp, -%d", Sz);
+            // t6指向了最终的 大结构体空间的起始位置
+            printLn("  mv t6, sp");
+            Depth += Sz / 8;
+            BSStack += Sz / 8;
+            BSDepth += Sz / 8;
+          }
+        }
+        return BSStack;
+      }
+      ```
+    - pushArgs2(Args, true); 第一遍对栈传递的变量进行压栈
+      - TYPE STRUCT/UNION: pushStruct(Args->Ty)
+    - pushArgs2(Args, false); 第二遍对寄存器传递的变量进行压栈
+  
+```c
+static void pushStruct(Type *Ty) {
+  // 大于16字节的结构体
+  if (Ty->Size > 16) {
+    // 将结构体复制一份到栈中，然后通过寄存器或栈传递被复制结构体的地址
+    // ---------------------------------
+    //             大结构体      ←
+    // --------------------------------- <- t6
+    //      栈传递的   其他变量
+    // ---------------------------------
+    //            大结构体的指针  ↑
+    // --------------------------------- <- sp
+
+    // 计算大结构体的偏移量
+    int Sz = alignTo(Ty->Size, 8);
+    // BSDepth记录了剩余 大结构体的字节数
+    BSDepth -= Sz / 8;
+    // t6存储了，大结构体空间的起始位置
+    int BSOffset = BSDepth * 8;
+
+    printLn("  # 复制%d字节的大结构体到%d(t6)的位置", Sz, BSOffset);
+    for (int I = 0; I < Sz; I++) {
+      printLn("  lb t0, %d(a0)", I);
+      printLn("  sb t0, %d(t6)", BSOffset + I);
+    }
+
+    printLn("  # 大于16字节的结构体, 对该结构体地址压栈");
+    printLn("  addi a0, t6, %d", BSOffset);
+    push();
+    return;
+  }
+
+  // 含有两个成员（含浮点）的结构体
+  // 展开到栈内的两个8字节的空间
+  if ((isFloNum(Ty->FSReg1Ty) && Ty->FSReg2Ty != TyVoid) ||
+      isFloNum(Ty->FSReg2Ty)) {
+    printLn("  # 对含有两个成员（含浮点）结构体进行压栈");
+    printLn("  addi sp, sp, -16");
+    Depth += 2;
+
+    printLn("  ld t0, 0(a0)");
+    printLn("  sd t0, 0(sp)");
+
+    // 计算第二部分在结构体中的偏移量，为两个成员间的最大尺寸
+    int Off = MAX(Ty->FSReg1Ty->Size, Ty->FSReg2Ty->Size);
+    printLn("  ld t0, %d(a0)", Off);
+    printLn("  sd t0, 8(sp)");
+
+    return;
+  }
+  // 处理只有一个浮点成员的结构体
+  // 或者是小于16字节的结构体
+  char *Str = isFloNum(Ty->FSReg1Ty) ? "只有一个浮点" : "小于16字节";
+  int Sz = alignTo(Ty->Size, 8);
+  printLn("  # 为%s的结构体开辟%d字节的空间, ", Str, Sz);
+  printLn("  addi sp, sp, -%d", Sz);
+  Depth += Sz / 8;
+
+  printLn("  # 开辟%d字节的空间, 复制%s的内存", Sz, Str);
+  for (int I = 0; I < Ty->Size; I++) {
+    printLn("  lb t0, %d(a0)", I);
+    printLn("  sb t0, %d(sp)", I);
+  }
+  return;
+}
+```
+
+
+
+
 
 ## todo
 - stage2阶段编译
@@ -5306,3 +5436,6 @@ static Obj *newGVar(char *Name, Type *Ty) {
 - rvcc自举 197
 - 这个代码要是写错了, 我怎么debug?
 - 将.s文件中间态打印出来
+
+### 反馈
+200里面 parse.c::funCall出错了
