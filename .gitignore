@@ -30,3 +30,5 @@ build/
 # IDE相关文件夹
 .cache/
 .vscode/
+
+tmp

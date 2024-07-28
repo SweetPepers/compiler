@@ -1427,7 +1427,7 @@ clean:
 运行起来了
 
 `riscv64-linux-gnu-gcc -static -o test/arith.exe test/arith.s -xc test/common`
-用`riscv64-gcc` 以C程序编译的common文件
+-xc:用`riscv64-gcc` 以C程序编译的common文件
 
 `gcc -o- -E -P -C test/arith.c | ./rvcc -o test/arith.s -`
 - -E  Preprocess only; do not compile, assemble or link.
@@ -5236,6 +5236,43 @@ else{ // 全局变量 or 函数
     printLn("  ld a0, %%pcrel_lo(.Lpcrel_hi%d)(a0)", C);
     return;
 ```
+### 199 支持栈传递形参
+这和上一节有什么区别?
+```c
+// 198 定义在funciton,但是实现在commmon, common并非rvcc编译的, 而是riscv-gcc编译的, 就是rvcc编不了common里面的内容
+int add10_int(int x1, int x2, int x3, int x4, int x5, int x6, int x7, int x8,
+              int x9, int x10) {
+  return x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8 + x9 + x10;
+}
+// 199
+int many_args1(int a, int b, int c, int d, int e, int f, int g, int h) {
+  return g / h;
+}
+```
+会报错, 就是寄存器只有8个,但是用多了, 之前FP_MAX是8
+```sh
+/tmp/rvcc-Q6oDDX: Assembler messages:
+/tmp/rvcc-Q6oDDX:14873: Error: illegal operands `sw a8,0(t0)'
+/tmp/rvcc-Q6oDDX:14878: Error: illegal operands `sw a9,0(t0)'
+/tmp/rvcc-Q6oDDX:14923: Error: illegal operands `sd a10,0(t0)'
+/tmp/rvcc-Q6oDDX:14928: Error: illegal operands `sd a11,0(t0)'
+```
+值 -> 实参 -> 形参
+上一节做到了前半部分
+
+之气在genFunc中, 所有的值均通过寄存器传值()
+- storeFloat
+- storeGeneral()
+现在在这个函数中, 遍历变量时
+```c
+    // 不处理栈传递的形参
+    if (Var->Offset > 0)
+      continue;
+```
+就是本来变量都在
+`ND_FUNCALL` 解析中会先存满寄存器, 剩下的参数使用栈 198节干的事情
+这一节相当于解析FUNC时, 先从寄存器取, 取满了再从栈取(原本是全从寄存器取)
+
 
 ## todo
 - stage2阶段编译

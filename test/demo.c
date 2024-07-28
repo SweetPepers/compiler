@@ -1,5 +1,4 @@
-#include <stdlib.h>
-#include <stdio.h>
+#include "test.h"
 
 int main(){
   int a = 5;
@@ -21,6 +20,7 @@ int main(){
 
   int i=2; 
   printf("%d\n",  i + ++i * i++); // 16 
+  return 0;
 
 }
 
