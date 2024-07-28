@@ -5175,10 +5175,97 @@ va_end(list) //  执行该宏可以清空可变参数列表
 
 ### 198 支持栈传递实参
 codegen.c
+todo 回头再看吧
 
+### eposide 
+main.c
+主要是改了一些环境的路径, 要不某些配置找不到
+
+parse.c: 将全局变量设置为本地的全局变量, 否则 去掉链接时 符号会冲突(因为每个文件中的全局变量都是L001开始)
+```c
+// 在链表中新增一个全局变量
+static Obj *newGVar(char *Name, Type *Ty) {
+  Obj *Var = newVar(Name, Ty);
+  Var->Next = Globals;
+  Var->IsStatic = true;
+  // 存在定义
+  Var->IsDefinition = true;
+  Globals = Var;
+  return Var;
+}
+```
+
+codegen.c:genAddr()
+之气那对于全局变量(函数)的处理
+```c
+else{ // 全局变量 or 函数
+        printLn("  # 获取%s%s的地址", Nd->Ty->Kind == TY_FUNC ? "函数" : "全局变量", Nd->Var->Name);
+        printLn("  la a0, %s", Nd->Var->Name);  // 全局变量存放在符号表中, data段
+}
+```
+
+现在
+```c
+// 函数
+    if (Nd->Ty->Kind == TY_FUNC){
+      // 定义的函数
+      if (Nd->Var->IsDefinition){
+        printLn("  # 获取函数%s的地址", Nd->Var->Name);
+        printLn("  la a0, %s", Nd->Var->Name);
+      }
+      // 外部函数
+      else{
+        int C = count();
+        printLn("  # 获取外部函数的绝对地址");
+        printLn(".Lpcrel_hi%d:", C);
+        // 高20位地址, 存到a0中
+        printLn("  auipc a0, %%got_pcrel_hi(%s)", Nd->Var->Name);
+        // 低12位地址, 加到a0中
+        printLn("  ld a0, %%pcrel_lo(.Lpcrel_hi%d)(a0)", C);
+      }
+      return;
+    }
+    
+    // 全局变量
+    int C = count();
+    printLn("  # 获取全局变量的绝对地址");
+    printLn(".Lpcrel_hi%d:", C);
+    // 高20位地址, 存到a0中
+    printLn("  auipc a0, %%got_pcrel_hi(%s)", Nd->Var->Name);
+    // 低12位地址, 加到a0中
+    printLn("  ld a0, %%pcrel_lo(.Lpcrel_hi%d)(a0)", C);
+    return;
+```
 
 ## todo
 - stage2阶段编译
+```sh
+/usr/include/features.h:461: #  include <sys/cdefs.h>
+                                        ^ sys/cdefs.h: cannot open file: No such file or directory
+```
+这个是进行了多次rvcc编译, 每次全局变量都是从1开始, 导致多个文件都有.L..0开头的文件
+```sh
+# 命名又冲突了
+/usr/lib/gcc-cross/riscv64-linux-gnu/9/../../../../riscv64-linux-gnu/bin/ld: stage2/preprocess.o: in function `.L..0':
+(.data+0xa1d): multiple definition of `.L..0'; stage2/tokenize.o:(.data+0x85a): first defined here
+```
+这里的锅
+```c
+static Obj *newGVar(char *Name, Type *Ty) {
+  Obj *Var = newVar(Name, Ty);
+  Var->Next = Globals;
+  Var->IsStatic = true; // 之前是false 再看一下影响
+  // 存在定义
+  Var->IsDefinition = true;
+  Globals = Var;
+  return Var;
+}
+```
+
+后面还有问题, 实际是stage2编译出来的rvcc需要riscv运行, 但是我不知道怎么输入参数
+原文说的是stage2编译出的rvcc是平台无关的
+受够了 riscv了, 明天换x86的汇编指令
 - 可变参数 196
 - rvcc自举 197
 - 这个代码要是写错了, 我怎么debug?
+- 将.s文件中间态打印出来

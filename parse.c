@@ -422,7 +422,7 @@ static Obj *newLVar(char *Name, Type *Ty) {
 static Obj *newGVar(char *Name, Type *Ty) {
   Obj *Var = newVar(Name, Ty);
   Var->Next = Globals;
-  Var->IsStatic = false;
+  Var->IsStatic = true;
   // 存在定义
   Var->IsDefinition = true;
   Globals = Var;

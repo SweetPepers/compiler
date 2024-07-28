@@ -34,7 +34,7 @@ test/%.exe: rvcc test/%.c
 #	$(CC) -o- -E -P -C test/$*.c | ./rvcc -c -o test/$*.o -
 	./rvcc -Iinclude -Itest -c -o test/$*.o test/$*.c
 # riscv64-linux-gnu-gcc -o- -E -P -C test/$*.c | ./rvcc -o test/$*.s -
-# $(CC) -static -o $@ test/$*.s -xc test/common
+# $(CC) -o $@ test/$*.o -xc test/common
 	riscv64-linux-gnu-gcc -static -o $@ test/$*.o -xc test/common
 
 run/%: test/%.exe
@@ -58,23 +58,28 @@ test: $(TESTS)
 # # 垃圾编译器 链接都做不到
 
 stage2/rvcc: $(OBJS:%=stage2/%)
-	# riscv64-linux-gnu-gcc -o $@ $^ $(LDFLAGS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	riscv64-linux-gnu-gcc -o $@ $^ $(LDFLAGS)
+# $(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # 利用stage1的rvcc去将rvcc的源代码编译为stage2的汇编文件
 stage2/%.o: rvcc
 	mkdir -p stage2/test
-	# ./self.py rvcc.h $*.c > stage2/$*.c
-	# ./rvcc -c -o stage2/$*.o stage2/$*.c
-	./rvcc -c -o $(@D)/$*.o $*.c
+# ./self.py $*.c > stage2/$*.c
+# ./rvcc -c -o stage2/$*.o stage2/$*.c
+# ./rvcc -Iinclude -Itest -S -o $(@D)/$*.s $*.c
+	./rvcc -Iinclude -Itest -c -o $(@D)/$*.o $*.c
 
 
 # 利用stage2的rvcc去进行测试
 stage2/test/%.exe: stage2/rvcc test/%.c
 	mkdir -p stage2/test
-	# $(CC) -o- -E -P -C test/$*.c | ./stage2/rvcc -c -o stage2/test/$*.o -
-	./stage2/rvcc -Iinclude -Itest -c -o stage2/test/$*.o test/$*.c
+# $(CC) -o- -E -P -C test/$*.c | ./stage2/rvcc -c -o stage2/test/$*.o -
+# qemu-riscv64 -L $(RISCV)/sysroot ./stage2/rvcc -Iinclude -Itest -c -o stage2/test/$*.o test/$*.c
 	riscv64-linux-gnu-gcc -static -o $@ stage2/test/$*.o -xc test/common
+
+# ./rvcc -Iinclude -Itest -c -o test/$*.o test/$*.c
+# riscv64-linux-gnu-gcc -static -o $@ test/$*.o -xc test/common
+
 
 # 只使用stage2的rvcc进行宏的测试
 stage2/test/macro.exe: stage2/rvcc test/macro.c
@@ -86,7 +91,7 @@ test-stage2: $(TESTS:test/%=stage2/test/%)
 # for i in $^; do echo $$i; qemu-riscv64 -L $(RISCV)/sysroot ./$$i || exit 1; echo; done
 	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
 	test/driver.sh ./stage2/rvcc
-	test/driver.sh ./stage2/rvcc
+# test/driver.sh ./stage2/rvcc
 
 
 # 进行全部的测试
@@ -94,7 +99,7 @@ test-all: test test-stage2
 
 # 清理标签，清理所有非源代码文件
 clean:
-	rm -rf rvcc tmp* $(TESTS) test/*.s test/*.exe stage2/
+	rm -rf rvcc $(TESTS) test/*.s test/*.exe stage2/
 	find * -type f '(' -name '*~' -o -name '*.o' ')' -exec rm {} ';'
 # 伪目标，没有实际的依赖文件
 .PHONY: test clean test-stage2

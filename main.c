@@ -3,7 +3,7 @@
 // 【注意】
 // 如果是交叉编译，请把这个路径改为$RISCV对应的路径
 // 注意 ~ 应替换为具体的 /home/用户名 的路径
-static char *RVPath = "/home/";
+static char *RVPath = "/root/riscv";
 
 // 引入路径区
 StringArray IncludePaths;
@@ -67,7 +67,7 @@ static void addDefaultIncludePaths(char *Argv0) {
 
   // 支持标准的引入路径
   strArrayPush(&IncludePaths, "/usr/local/include");
-  strArrayPush(&IncludePaths, "/usr/include/riscv64-linux-gnu");
+  strArrayPush(&IncludePaths, "/usr/riscv64-linux-gnu/include");
   strArrayPush(&IncludePaths, "/usr/include");
 }
 
@@ -124,6 +124,13 @@ static void parseArgs(int Argc, char **Argv) {
       continue;
     }
 
+    // 解析-oXXX的参数
+    if (!strncmp(Argv[I], "-o", 2)) {
+      // 目标文件的路径
+      OptO = Argv[I] + 2;
+      continue;
+    }
+
     // 解析-I
     if (!strncmp(Argv[I], "-I", 2)) {
       strArrayPush(&IncludePaths, Argv[I] + 2);
@@ -142,17 +149,10 @@ static void parseArgs(int Argc, char **Argv) {
       continue;
     }
 
-    // 解析-oXXX的参数
-    if (strncmp(Argv[I], "-o", 2) == 0) {
-      // 目标文件的路径
-      OptO = Argv[I] + 2;
-      continue;
-    }
-
-    // 解析为-的参数  -表示从输入读取字符串
+    // 解析为-的参数
     if (Argv[I][0] == '-' && Argv[I][1] != '\0')
       error("unknown argument: %s", Argv[I]);
-    
+
     // rvcc sort.c -o sort.o  : InputPath = "sort.c"  ==> "-"
     // 其他情况则匹配为输入文件
     strArrayPush(&InputPaths, Argv[I]);
@@ -163,7 +163,7 @@ static void parseArgs(int Argc, char **Argv) {
     error("no input files");
 }
 
-// 判断字符串P是否以相同字符串Q结尾
+// 判断字符串P是否以字符串Q结尾
 static bool endsWith(char *P, char *Q) {
   int len1 = strlen(P);
   int len2 = strlen(Q);
@@ -222,6 +222,8 @@ static void runSubprocess(char **Argv) {
   }
 
   // Fork–exec模型
+  // 创建当前进程的副本，这里开辟了一个子进程
+  // 返回-1表示错位，为0表示成功
   if (fork() == 0) {
     // 执行文件rvcc，没有斜杠时搜索环境变量，此时会替换子进程
     execvp(Argv[0], Argv);
@@ -291,10 +293,9 @@ static void printTokens(Token *Tok) {
 
 // 编译C文件到汇编文件
 static void cc1(void) {
-
   // 解析文件，生成终结符流
   Token *Tok = tokenizeFile(BaseFile);
-    // 终结符流生成失败，对应文件报错
+  // 终结符流生成失败，对应文件报错
   if (!Tok)
     error("%s: %s", BaseFile, strerror(errno));
 
@@ -310,19 +311,18 @@ static void cc1(void) {
   // 解析终结符流
   Obj *Prog = parse(Tok);
 
-
   // 生成代码
   FILE *Out = openFile(OutputFile);
   codegen(Prog, Out);
-  return ;
 }
 
 // 调用汇编器
 static void assemble(char *Input, char *Output) {
   // 选择对应环境内的汇编器
-  char *As = strlen(RVPath) ? "riscv64-linux-gnu-as" : "as";
-  // "-fPIC"：创建与地址无关的程序
-  char *Cmd[] = {"riscv64-linux-gnu-as", "-fPIC", "-c", Input, "-o", Output, NULL};
+  char *As = strlen(RVPath)
+                 ? format("%s/bin/riscv64-unknown-linux-gnu-as", RVPath)
+                 : "as";
+  char *Cmd[] = {As, "-c", Input, "-o", Output, NULL};
   runSubprocess(Cmd);
 }
 
@@ -390,7 +390,9 @@ static void runLinker(StringArray *Inputs, char *Output) {
   StringArray Arr = {};
 
   // 链接器
-  char *Ld = strlen(RVPath) ? "riscv64-linux-gnu-ld" : "ld";
+  char *Ld = strlen(RVPath)
+                 ? format("%s/bin/riscv64-unknown-linux-gnu-ld", RVPath)
+                 : "ld";
   strArrayPush(&Arr, Ld);
 
   // 输出文件
@@ -400,11 +402,10 @@ static void runLinker(StringArray *Inputs, char *Output) {
   strArrayPush(&Arr, "elf64lriscv");
   strArrayPush(&Arr, "-dynamic-linker");
 
-  // char *LP64D =
-  //     strlen(RVPath)
-  //         ? format("%s/sysroot/lib/ld-linux-riscv64-lp64d.so.1", RVPath)
-  //         : "/lib/ld-linux-riscv64-lp64d.so.1";
-  char *LP64D = format("%s/sysroot/lib/ld-linux-riscv64-lp64d.so.1", RVPath);
+  char *LP64D =
+      strlen(RVPath)
+          ? format("%s/sysroot/lib/ld-linux-riscv64-lp64d.so.1", RVPath)
+          : "/lib/ld-linux-riscv64-lp64d.so.1";
   strArrayPush(&Arr, LP64D);
 
   char *LibPath = findLibPath();
@@ -455,7 +456,7 @@ static void runLinker(StringArray *Inputs, char *Output) {
 }
 
 // 编译器驱动流程
-// 
+//
 // 源文件
 //   ↓
 // 预处理器预处理后的文件
@@ -517,17 +518,15 @@ int main(int Argc, char **Argv) {
     // 处理.s文件
     if (endsWith(Input, ".s")) {
       // 如果没有指定-S，那么需要进行汇编
-      if (!OptS) {
+      if (!OptS)
         assemble(Input, Output);
-        strArrayPush(&LdArgs, Output);
-      }
       continue;
     }
 
     // 处理.c文件
     if (!endsWith(Input, ".c") && strcmp(Input, "-"))
       error("unknown file extension: %s", Input);
-    
+
     // 只进行解析
     if (OptE) {
       runCC1(Argc, Argv, Input, NULL);
@@ -549,7 +548,7 @@ int main(int Argc, char **Argv) {
       // as，编译汇编文件为可重定位文件
       assemble(Tmp, Output);
       continue;
-    } 
+    }
 
     // 否则运行cc1和as
     // 临时文件Tmp1作为cc1输出的汇编文件
