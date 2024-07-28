@@ -5400,6 +5400,31 @@ static void pushStruct(Type *Ty) {
 }
 ```
 
+### 201 支持结构体形参
+支持解析带结构体的函数实现
+storeGeneral()仅支持大小为1 2 4 8的
+rvcc.h::Obj中添加成员`bool IsHalfByStack; // 一半用寄存器，一半用栈`, 这个是解析大小为9-16字节的结构体, 但只剩下一个寄存器时使用的
+
+codegen.c
+- assignLVarOffsets 算栈中的偏移量
+  - todo 为什么寄存器一定可用? 因为前面调用的函数`setFloStMemsTy(&Ty, GP, FP);`中判断了
+  - 同理16字节以下的浮点/整型占用寄存器, 其他的使用栈
+  - 只有len<16的FSReg1Ty才不为TyVoid
+- genFunc
+  - 小于16的 从寄存器复制到自己的栈
+  - 大于16的
+  ```c
+        // 大于16字节的结构体参数，通过访问它的地址，
+      // 将原来位置的结构体复制到栈中
+      if (Ty->Size > 16) {
+        printLn("  # 大于16字节的结构体进行压栈");
+        storeStruct(GP++, Var->Offset, Ty->Size);
+        break;
+      }
+  ```
+
+CRUX 寄存器传参, 现在是把寄存器传参的值也压了一遍堆栈, 后续应该会优化, 后压的寄存器传参的值, 然后再一个一个的压入寄存器, 而非直接将变量的值存入寄存器, 与实际实现不符, 比实际要慢
+
 
 
 

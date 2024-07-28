@@ -140,6 +140,9 @@ struct Obj {
   // 局部变量
   int Offset;      // fp的偏移量
 
+  // 结构体类型
+  bool IsHalfByStack; // 一半用寄存器，一半用栈
+
   // 函数或全局变量
   bool IsFunction;   // 是否为函数
   bool IsDefinition; // 是否为函数定义
