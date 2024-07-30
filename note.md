@@ -5484,9 +5484,73 @@ ASSERT(1, ({ struct_type_1_1_test_3().a; }));
 ```
 以往的Funcall不会在addr语句中出现, 会直接判定为ND_FUNCALL, 但是上面这种情形会判定为ND_ADDR
 
+具体规则结合下一节看
 
+### 203 支持定义返回结构体的函数
+parse.c 实际没用, 因为codegen里面就不会对结构体类型做转换
+```c
+// 对函数返回值做了处理
+    Type *Ty = CurrentFn->Ty->ReturnTy;
 
+    // 对于返回值为结构体时不进行类型转换
+    if (Ty->Kind != TY_STRUCT && Ty->Kind != TY_UNION)
+      Exp = newCast(Exp, Ty);
 
+    Nd->LHS = Exp;
+```
+
+codegen.c   
+ND_RETURN
+```c
+case ND_RETURN:
+    if (Nd->LHS){
+      genExpr(Nd->LHS); // 变量的地址放入a0
+    // 不为空返回语句时
+
+      Type *Ty = Nd->LHS->Ty;
+      // 处理结构体作为返回值的情况
+      if (Ty->Kind == TY_STRUCT || Ty->Kind == TY_UNION) {
+        if (Ty->Size <= 16)
+          // 小于16字节拷贝寄存器
+          copyStructReg();
+        else
+          // 大于16字节拷贝内存
+          copyStructMem();
+      }
+    }
+    // 无条件跳转语句, 跳转到.L.return段
+    // j offset是 jal x0, offset的别名指令
+    printLn("  # 跳转到.L.return.%s段", CurrentFn->Name);
+    printLn("  j .L.return.%s", CurrentFn->Name);
+    return;
+```
+前面会把变量的地址放入a0
+- copyStructReg()
+  把a0指向的数据放入寄存器(GP,FP)中
+- copyStructMem() 与上一节对应, 第一个参数的位置(a0)变成了返回地址, 然后嘎嘎的把数据复制过去 a0->t1
+  ```c
+  // 大于16字节的结构体返回值, 需要拷贝内存
+  static void copyStructMem(void) {
+    Type *Ty = CurrentFn->Ty->ReturnTy;
+    // 第一个参数, 调用者的缓冲区指针
+    Obj *Var = CurrentFn->Params;
+
+    printLn("  # 复制大于16字节结构体内存");
+    printLn("  # 将栈内struct地址存入t1, 调用者的结构体的地址");
+    printLn("  li t0, %d", Var->Offset);
+    printLn("  add t0, fp, t0");
+    printLn("  ld t1, 0(t0)");
+
+    printLn("  # 遍历结构体并从a0位置复制所有字节到t1");
+    for (int I = 0; I < Ty->Size; I++) {
+      printLn("  lb t0, %d(a0)", I);
+      printLn("  sb t0, %d(t1)", I);
+    }
+  }
+  ```
+
+我看代码, FUNCALL是回收栈了, 但是之前返回参数在栈中, 所以是什么时候调用的呢?
+- 在`pushArgs()`中, `stack+BSstack`不包括这个返回的结构体的大小, 所以回收时不会回收这一部分
 
 
 

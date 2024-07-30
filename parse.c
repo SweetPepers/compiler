@@ -1441,7 +1441,13 @@ static Node *stmt(Token **Rest, Token *Tok) {
 
     addType(Exp);
     // 对于返回值进行类型转换
-    Nd->LHS = newCast(Exp, CurrentFn->Ty->ReturnTy);
+    Type *Ty = CurrentFn->Ty->ReturnTy;
+
+    // 对于返回值为结构体时不进行类型转换
+    if (Ty->Kind != TY_STRUCT && Ty->Kind != TY_UNION)
+      Exp = newCast(Exp, Ty);
+
+    Nd->LHS = Exp;
     return Nd;
   }
 
@@ -2855,6 +2861,11 @@ static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr) {
 
   // 函数参数
   createParamLVars(Ty->Params);
+  // 有大于16字节的结构体返回值的函数
+  Type *RTy = Ty->ReturnTy;
+  if ((RTy->Kind == TY_STRUCT || RTy->Kind == TY_UNION) && RTy->Size > 16)
+    // 第一个形参是隐式的，包含了结构体的地址
+    newLVar("", pointerTo(RTy));
   Fn->Params = Locals;
   
   // 判断是否为可变参数
