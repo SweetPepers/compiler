@@ -5607,6 +5607,8 @@ ND_FUNCALL
   - 此时可变参数因为没有对应的终结符, 所以留在了栈中
 
 
+### 205 支持va_copy()
+`#define va_copy(dest, src) (dest = src)`
 
 
 
