@@ -5425,6 +5425,72 @@ codegen.c
 
 CRUX 寄存器传参, 现在是把寄存器传参的值也压了一遍堆栈, 后续应该会优化, 后压的寄存器传参的值, 然后再一个一个的压入寄存器, 而非直接将变量的值存入寄存器, 与实际实现不符, 比实际要慢
 
+### 202 支持调用返回结构体的函数
+只支持call, 不支持声明
+
+rvcc.h: Node结构, 添加`Obj *RetBuffer;   // 返回值缓冲区`成员
+parse.c: funCall()中, 如果返回类型是结构体
+```c
+  if (Nd->Ty->Kind == TY_STRUCT || Nd->Ty->Kind == TY_UNION)
+    Nd->RetBuffer = newLVar("", Nd->Ty);
+```
+
+genExpr():ND_FUNCALL: 因为要使用RetBuffer, 所以pushArgs传入参数改变为上一级ND
+codegen.c
+- 调用前准备  
+    大于16字节的
+
+    FUNCALL在parse中的类型为`Nd->Ty = Ty->ReturnTy;`
+    刚进去:
+    ```c
+      // 如果是超过16字节的结构体, 则通过第一个寄存器传递结构体的指针
+      if (Nd->RetBuffer && Nd->Ty->Size > 16)
+        GP++;
+    ```
+    结束:
+    pushArgs最后会将大结构体的地址压入栈顶
+
+    出来后将此地址pop到第一个寄存器
+    `fp+offset`存入GP(实际就是a0)
+- **调用函数**
+- 调用后  
+  // 小于16字节的
+  ```c
+    // 如果返回的结构体小于16字节, 直接使用寄存器返回
+    if (Nd->RetBuffer && Nd->Ty->Size <= 16) {
+      copyRetBuffer(Nd->RetBuffer); 
+      printLn("  li t0, %d", Nd->RetBuffer->Offset);
+      printLn("  add a0, fp, t0");
+    }
+  ```
+  copyRetBuffer中根据结构体中成员的类型, 将数据copy到整型/浮点寄存器中
+  `value`存入GP, FP
+  `fp+offset`存入a0
+
+genAddr()中解析这个是干啥的?
+```c
+  // 函数调用
+  case ND_FUNCALL:
+    // 如果存在返回值缓冲区
+    if (Nd->RetBuffer) {
+      genExpr(Nd); // Fn
+      return;
+    }
+    break;
+```
+要访问成员的变量, 就是以前的返回值都是int或者float这种, 但是现在返回结构体就可以访问成员
+```c
+ASSERT(1, ({ struct_type_1_1_test_3().a; }));
+```
+以往的Funcall不会在addr语句中出现, 会直接判定为ND_FUNCALL, 但是上面这种情形会判定为ND_ADDR
+
+
+
+
+
+
+
+
 
 
 
