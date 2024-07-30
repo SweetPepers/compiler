@@ -5610,6 +5610,30 @@ ND_FUNCALL
 ### 205 支持va_copy()
 `#define va_copy(dest, src) (dest = src)`
 
+### 206 支持解引用函数
+如果func是函数，那么*func等价于func
+函数本身就是指针, 直接用就行
+parse.c
+```c
+  // "*" cast
+  if (equal(Tok, "*")) {
+    Node *Nd = cast(Rest, Tok->Next);
+    addType(Nd);
+    // 如果func是函数，那么*func等价于func
+    if (Nd->Ty->Kind == TY_FUNC)
+      return Nd;
+    return newUnary(ND_DEREF, Nd, Tok);
+  }
+```
+
+```c
+int add2(int x, int y) {
+  return x + y;
+}
+ASSERT(5, (add2)(2, 3)); // 正常使用
+ASSERT(5, (***add2)(2, 3));  
+```
+
 
 
 
