@@ -126,6 +126,7 @@ Token *tokenize(File *FP);
 
 void initMacros(void);
 void defineMacro(char *Name, char *Buf);
+void undefMacro(char *Name);
 Token *preprocess(Token *Tok);
 
 //
