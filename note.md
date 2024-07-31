@@ -5634,7 +5634,66 @@ ASSERT(5, (add2)(2, 3)); // 正常使用
 ASSERT(5, (***add2)(2, 3));  
 ```
 
+### 207 解析数值终结符为pp-number
+```c
+#define CONCAT(x,y) x##y
+  ASSERT(5, ({ int f0zz=5; CONCAT(f,0zz); }));
+  ASSERT(5, ({ CONCAT(4,.57) + 0.5; }));
+  ASSERT(51, ({ CONCAT(4,5+6); })); 以前的版本可以成功
+```
+问题, 0zz会解析为两个tok, 然后`CONCAT(f,0zz)`会出现一个 f0这种变量
+然后 `CONCAT(4,.57)`会出40这种变量?还是40.57, 没问题, Tok中保留了原本的字符串以及转成int之后的值
 
+rvcc.h中添加的新的tok类型`TK_PP_NUM`  
+tokenize(): 之前会在这一步将数字的值解析出来, 现在切到preprocess中了, 这一步只是根据数字范围定一个PP_NUM, 解析数字的操作放到了convertPPTokens()中给预处理调用
+```c
+    // 解析数字
+    // 解析整型和浮点数 这里就是判断一个数字的范围, 但是不转
+    if (isdigit(*P) || (*P == '.' && isdigit(P[1]))) {  
+      // 6.7     .76 = 0.76
+      // 读取数字字面量
+      char *Q = P++;
+      while (true) {
+        if (P[0] && P[1] && strchr("eEpP", P[0]) && strchr("+-", P[1])) //todo 这里不明白, 注释掉也不影响结果
+          P += 2;
+        else if (isalnum(*P) || *P == '.')
+          P++;
+        else
+          break;
+      }
+      Cur = Cur->Next = newToken(TK_PP_NUM, Q, P);
+      continue;
+    }
+```
+
+```c
+// 转换预处理终结符
+void convertPPTokens(Token *Tok) {
+  for (Token *T = Tok; T->Kind != TK_EOF; T = T->Next) {
+    if (isKeyword(T))
+      // 将关键字的终结符设为为TK_KEYWORD
+      T->Kind = TK_KEYWORD;
+    else if (T->Kind == TK_PP_NUM)
+      // 转换预处理数值
+      convertPPNumber(T); 
+  }
+}
+```
+convertPPNumber和之前的实现`readNumber`基本相同, 多了一个解析长度的判断
+
+整体就是先标记, 再预处理, 预处理会对TOK的类型更改, 还保留原来的PP_NUM的再换回正常的NUM  
+那对于`CONCAT(f,0zz)` 这种情况呢? 这种也是0是一个单独的TOK, 但是类型是PP_NUM, 在##中处理有些不同吗
+
+readMacroArgs()本来就会把多个token存入一个宏实参中   
+所以这个数字的类型到底有什么影响?  
+- 编译-E 无影响, 可正常编译.o
+- 但是直接编译.o就有问题
+  ```c
+  test/macro.c:1: f0
+                  ^ undefined variable
+  ```
+  注意这btm的文件只有一行, 怎么出现的?
+  为甚恶魔啊啊啊啊 !CRUX todo
 
 
 

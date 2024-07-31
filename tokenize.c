@@ -330,14 +330,6 @@ static Token *readCharLiteral(char *Start, char *Quote) {
   return Tok;
 }
 
-// 将keyword的终结符转为KEYWORD
-void convertKeywords(Token *Tok) {
-  for (Token *T = Tok; T->Kind != TK_EOF; T = T->Next) {  
-    if (isKeyword(T))
-      T->Kind = TK_KEYWORD;
-  }
-}
-
 // 为所有Token添加行号
 static void addLineNumbers(Token *Tok) {
   char *P = CurrentFile->Contents;
@@ -356,9 +348,10 @@ static void addLineNumbers(Token *Tok) {
   } while (*P++);
 }
 
-// 读取数字字面量
-static Token *readIntLiteral(char *Start) {
-  char *P = Start;
+// 转换预处理数值
+static bool convertPPInt(Token *Tok) {
+  // 获取终结符对应的字符串
+  char *P = Tok->Loc;
 
   // 读取二、八、十、十六进制
   // 默认为十进制
@@ -408,6 +401,10 @@ static Token *readIntLiteral(char *Start) {
   // if (isalnum(*P))  
   //   errorAt(P, "invalid digit");
 
+  // 不能作为整型进行解析
+  if (P != Tok->Loc + Tok->Len)
+    return false;
+  
   // 推断出类型，采用能存下当前数值的类型
   Type *Ty;
   if (Base == 10) {
@@ -437,25 +434,26 @@ static Token *readIntLiteral(char *Start) {
   }
 
   // 构造NUM的终结符
-  Token *Tok = newToken(TK_NUM, Start, P);
+  Tok->Kind = TK_NUM;
   Tok->Val = Val;
   Tok->Ty = Ty;
-  return Tok;
+  return true;
 }
 
-// 读取数字
-static Token *readNumber(char *Start) {
-  // 尝试解析整型常量
-  Token *Tok = readIntLiteral(Start);
-  // 不带e或者f后缀，则为整型
-  if (!strchr(".eEfF", Start[Tok->Len]))
-    return Tok;
+// 预处理阶段的数字字面量比后面阶段的定义更宽泛
+// 因而先将数字字面量标记为pp-number，随后再转为常规数值终结符
+//
+// 转换预处理数值终结符为常规数值终结符
+static void convertPPNumber(Token *Tok) {
+  // 尝试作为整型常量解析
+  if (convertPPInt(Tok))
+    return;
 
   // 如果不是整型，那么一定是浮点数
   // free(Tok);  // 刚刚分配的释放掉`
   
   char *End;
-  double Val = strtod(Start, &End);
+  double Val = strtod(Tok->Loc, &End);
 
   // 处理浮点数后缀
   Type *Ty;
@@ -470,10 +468,24 @@ static Token *readNumber(char *Start) {
   }
 
   // 构建浮点数终结符
-  Tok = newToken(TK_NUM, Start, End);
+  if (Tok->Loc + Tok->Len != End)
+    errorTok(Tok, "invalid numeric constant");
+
+  Tok->Kind = TK_NUM;
   Tok->FVal = Val;
   Tok->Ty = Ty;
-  return Tok;
+}
+
+// 转换预处理终结符
+void convertPPTokens(Token *Tok) {
+  for (Token *T = Tok; T->Kind != TK_EOF; T = T->Next) {
+    if (isKeyword(T))
+      // 将关键字的终结符设为为TK_KEYWORD
+      T->Kind = TK_KEYWORD;
+    else if (T->Kind == TK_PP_NUM)
+      // 转换预处理数值
+      convertPPNumber(T);
+  }
 }
 
 // 终结符解析，文件名，文件内容
@@ -532,9 +544,16 @@ Token *tokenize(File * FP) {
     if (isdigit(*P) || (*P == '.' && isdigit(P[1]))) {  
       // 6.7     .76 = 0.76
       // 读取数字字面量
-      Cur->Next = readNumber(P);
-      Cur = Cur->Next;
-      P += Cur->Len;
+      char *Q = P++;
+      while (true) {
+        if (P[0] && P[1] && strchr("eEpP", P[0]) && strchr("+-", P[1]))
+          P += 2;
+        else if (isalnum(*P) || *P == '.')
+          P++;
+        else
+          break;
+      }
+      Cur = Cur->Next = newToken(TK_PP_NUM, Q, P);
       continue;
     }
 
@@ -583,7 +602,7 @@ Token *tokenize(File * FP) {
     }
 
     // 处理无法识别的字符
-    errorAt(P, "invalid token");
+    errorAt(P, "invalid token %d", *P);
   }
 
   // 解析结束，增加一个EOF，表示终止符。
