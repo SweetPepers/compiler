@@ -124,6 +124,8 @@ Token *tokenize(File *FP);
 // 预处理器
 //
 
+void initMacros(void);
+void defineMacro(char *Name, char *Buf);
 Token *preprocess(Token *Tok);
 
 //

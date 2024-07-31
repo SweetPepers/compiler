@@ -5695,6 +5695,23 @@ readMacroArgs()本来就会把多个token存入一个宏实参中
   注意这btm的文件只有一行, 怎么出现的?
   为甚恶魔啊啊啊啊 !CRUX todo
 
+### 208 支持-D选项
+preprocess.c:defineMacro() 已经实现了定义宏的接口
+
+main中parseArgs时, 判断一下 -D, 然后调用下面的函数
+```c
+// 定义宏
+static void define(char *Str) {
+  char *Eq = strchr(Str, '=');
+  if (Eq)
+    // 存在赋值，使用该值
+    defineMacro(strndup(Str, Eq - Str), Eq + 1);
+  else
+    // 不存在赋值，则设为1
+    defineMacro(Str, "1");
+}
+```
+
 
 
 ## todo
