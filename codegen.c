@@ -1694,10 +1694,16 @@ static void assignLVarOffsets(Obj *Prog) {
       // 栈传递的变量的直接跳过
       if (Var->Offset && !Var->IsHalfByStack)
         continue;
+
+      // 数组超过16字节时，对齐值至少为16字节
+      int Align = (Var->Ty->Kind == TY_ARRAY && Var->Ty->Size >= 16)
+                      ? MAX(16, Var->Align)
+                      : Var->Align;
+      
       // 每个变量分配size字节
       Offset += Var->Ty->Size;
       // 对齐变量
-      Offset = alignTo(Offset, Var->Align);
+      Offset = alignTo(Offset, Align);
       // 为每个变量赋一个偏移量, 或者说是栈中地址
       Var->Offset = -Offset;
       printLn(" # 寄存器传递变量%s偏移量%d", Var->Name, Var->Offset);
@@ -1737,7 +1743,11 @@ static void emitData(Obj *Prog) {
     printLn("  # 对齐全局变量");
     if (!Var->Align)
       error("Align can not be 0!");
-    printLn("  .align %d", simpleLog2(Var->Align));
+    // 数组超过16字节时，对齐值至少为16字节
+    int Align = (Var->Ty->Kind == TY_ARRAY && Var->Ty->Size >= 16)
+                    ? MAX(16, Var->Align)
+                    : Var->Align;
+    printLn("  .align %d", simpleLog2(Align));
     // 判断是否有初始值
     if (Var->InitData) {
       printLn("\n  # 数据段标签");
