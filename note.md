@@ -5845,6 +5845,8 @@ if (Mem->IsBitfield && Mem->BitWidth == 0) {
       ...}
 ```
 
+### 214 禁止获取位域的地址
+`  &x.a;`
 
 
 
