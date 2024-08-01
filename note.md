@@ -5848,6 +5848,30 @@ if (Mem->IsBitfield && Mem->BitWidth == 0) {
 ### 214 禁止获取位域的地址
 `  &x.a;`
 
+### 215 写入文件前,先写入内存缓冲区
+open_memstream() 函数可以为用户动态申请和扩展内存，并将内存大小通过参数返回
+
+parse之后:
+```c
+  Obj *Prog = parse(Tok);
+  // 生成代码
+
+  // 防止编译器在编译途中退出，而只生成了部分的文件
+  // 开启临时输出缓冲区
+  char *Buf;
+  size_t BufLen;
+  FILE *OutputBuf = open_memstream(&Buf, &BufLen);
+
+  // 输出汇编到缓冲区中
+  codegen(Prog, OutputBuf);
+  fclose(OutputBuf);
+
+  // 从缓冲区中写入到文件中
+  FILE *Out = openFile(OutputFile);
+  fwrite(Buf, BufLen, 1, Out);
+  fclose(Out);
+```
+
 
 
 
