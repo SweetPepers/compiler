@@ -5872,6 +5872,20 @@ parse之后:
   fclose(Out);
 ```
 
+### 216 忽略多个编译选项
+```c
+    // 忽略多个选项
+    if (!strncmp(Argv[I], "-O", 2) || !strncmp(Argv[I], "-W", 2) ||
+        !strncmp(Argv[I], "-g", 2) || !strncmp(Argv[I], "-std=", 5) ||
+        !strcmp(Argv[I], "-ffreestanding") ||
+        !strcmp(Argv[I], "-fno-builtin") ||
+        !strcmp(Argv[I], "-fno-omit-frame-pointer") ||
+        !strcmp(Argv[I], "-fno-stack-protector") ||
+        !strcmp(Argv[I], "-fno-strict-aliasing") || !strcmp(Argv[I], "-m64") ||
+        !strcmp(Argv[I], "-mno-red-zone") || !strcmp(Argv[I], "-w") ||
+        !strcmp(Argv[I], "-march=native"))
+      continue;
+```
 
 
 
