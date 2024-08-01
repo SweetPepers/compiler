@@ -5907,6 +5907,14 @@ noreturn [noreturn](https://blog.csdn.net/qq_21438461/article/details/131474044)
 
 // todo why?
 
+### 219 main函数隐式返回0
+genFun中, 生成完语句stmt后, 给a0置零
+```c
+  // main默认返回0
+  if (strcmp(Fn->Name, "main") == 0)
+      printLn("  li a0, 0");
+```
+
 
 
 ## todo
