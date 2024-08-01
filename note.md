@@ -5716,6 +5716,71 @@ static void define(char *Str) {
 这个是干啥的?
 就是undef, 将preprocess中undef的操作抽出来, 然后在main中调用就行了
 
+### 210 支持位域
+```c
+  ASSERT(4, sizeof(struct {int x:1; }));
+  ASSERT(8, sizeof(struct {long x:1; }));
+
+  struct bit1 {
+    short a;
+    char b;
+    int c : 2;
+    int d : 3;
+    int e : 4;  // 比如这里是从下一个字节开始存的
+  };
+```
+
+Member结构体中添加成员
+```c
+  // 位域
+  bool IsBitfield; // 是否为位域
+  int BitOffset;   // 位偏移量
+  int BitWidth;    // 位宽度
+```
+
+解析结构体成员时, 判断`:`
+```c
+      // 位域成员赋值
+      if (consume(&Tok, Tok, ":")) {
+        Mem->IsBitfield = true;
+        Mem->BitWidth = constExpr(&Tok, Tok);
+      }
+```
+计算结构体成员偏移量
+```c
+    if (Mem->IsBitfield) {
+      // 位域成员变量
+      int Sz = Mem->Ty->Size;
+      // Bits此时对应成员最低位，Bits + Mem->BitWidth - 1对应成员最高位
+      // 二者若不相等，则说明当前这个类型剩余的空间存不下，需要新开辟空间
+      if (Bits / (Sz * 8) != (Bits + Mem->BitWidth - 1) / (Sz * 8))
+        // 新开辟一个当前当前类型的空间
+        Bits = alignTo(Bits, Sz * 8);
+
+      // 若当前字节能够存下，则向下对齐，得到成员变量的偏移量
+      Mem->Offset = alignDown(Bits / 8, Sz);
+      Mem->BitOffset = Bits % (Sz * 8);
+      Bits += Mem->BitWidth;
+    }
+```
+
+codegen.c:  
+访问值genExpr
+- 像普通变量一样计算地址后load, 然后通过移位取值
+  ```c
+      printLn("  slli a0, a0, %d", 64 - Mem->BitWidth - Mem->BitOffset);
+      // 清除位域成员变量未用到的低位
+      if (Mem->Ty->IsUnsigned)
+        printLn("  srli a0, a0, %d", 64 - Mem->BitWidth);
+      else
+        printLn("  srai a0, a0, %d", 64 - Mem->BitWidth);
+  ```
+
+赋值时
+- 生成的地址是整个位域的起始地址
+- 值是移位后的值
+  - 要读取原地址的值, 然后根据位宽和偏移等信息修改此字节中此位域相关的值, 再整个赋值
+
 
 
 

@@ -229,6 +229,11 @@ static bool isFunction(Token *Tok);
 static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr);
 static Token *globalVariable(Token *Tok, Type *Basety, VarAttr *Attr);
 
+// 向下对齐值
+// N % Align != 0 , 即 N 未对齐时,  AlignDown(N) = AlignTo(N) - Align
+// N % Align == 0 , 即 N 已对齐时， AlignDown(N) = AlignTo(N)
+static int alignDown(int N, int Align) { return alignTo(N - Align + 1, Align); }
+
 // 进入域
 static void enterScope(void) {
   Scope *S = calloc(1, sizeof(Scope));
@@ -2403,6 +2408,13 @@ static void structMembers(Token **Rest, Token *Tok, Type *Ty) {
       Mem->Name = Mem->Ty->Name;
       Mem->Idx = Idx++;
       Mem->Align = Attr.Align? Attr.Align : Mem->Ty->Align;
+
+      // 位域成员赋值
+      if (consume(&Tok, Tok, ":")) {
+        Mem->IsBitfield = true;
+        Mem->BitWidth = constExpr(&Tok, Tok);
+      }
+
       Cur = Cur->Next = Mem;
       if (Mem->Ty->Kind == TY_ARRAY && Mem->Ty->ArrayLen < 0 && !equal(Tok, ";"))
         errorTok(Tok, "flexible array member not at end of struct");
@@ -2475,16 +2487,35 @@ static Type *structDecl(Token **Rest, Token *Tok) {
     return Ty;
   
   // 计算结构体内成员的偏移量
-  int Offset = 0;
+  int Bits = 0;
+  // 遍历成员
   for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
-    Offset = alignTo(Offset, Mem->Align);
-    Mem->Offset = Offset;
-    Offset += Mem->Ty->Size;
+    if (Mem->IsBitfield) {
+      // 位域成员变量
+      int Sz = Mem->Ty->Size;
+      // Bits此时对应成员最低位，Bits + Mem->BitWidth - 1对应成员最高位
+      // 二者若不相等，则说明当前这个类型剩余的空间存不下，需要新开辟空间
+      if (Bits / (Sz * 8) != (Bits + Mem->BitWidth - 1) / (Sz * 8))
+        // 新开辟一个当前当前类型的空间
+        Bits = alignTo(Bits, Sz * 8);
+
+      // 若当前字节能够存下，则向下对齐，得到成员变量的偏移量
+      Mem->Offset = alignDown(Bits / 8, Sz);
+      Mem->BitOffset = Bits % (Sz * 8);
+      Bits += Mem->BitWidth;
+    } else {
+      // 常规结构体成员变量
+      Bits = alignTo(Bits, Mem->Align * 8);
+      Mem->Offset = Bits / 8;
+      Bits += Mem->Ty->Size * 8;
+    }
+
+    // 类型的对齐值，不小于当前成员变量的对齐值
     // struct的默认对齐为1, 存在member则为member中的最大对齐
     if (Ty->Align < Mem->Align)
       Ty->Align = Mem->Align;
   }
-  Ty->Size = alignTo(Offset, Ty->Align);
+  Ty->Size = alignTo(Bits, Ty->Align * 8) / 8;
   return Ty;
 }
 
