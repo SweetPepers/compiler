@@ -5887,6 +5887,11 @@ parse之后:
       continue;
 ```
 
+### 217 开启-wall选项
+noreturn [noreturn](https://blog.csdn.net/qq_21438461/article/details/131474044)
+
+`_Noreturn`和`void`都是函数的返回类型，但它们的含义是不同的。`void`表示函数没有返回值，但是函数执行完毕后会返回到调用者。而`_Noreturn`则表示函数执行完毕后不会返回到调用者  
+这是因为abort函数（它也是一个[[noreturn]]函数）会终止程序的执行
 
 
 
