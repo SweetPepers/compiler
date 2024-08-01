@@ -57,6 +57,11 @@ int main() {
   ASSERT(1, ({ T3 x={1,2,3}; x.c/=3; }));
   ASSERT(1, ({ int a=0; T3 x={1,2,3}; a=x.b=1;}));
 
+  printf("[213] 处理零宽度位域成员\n");
+  ASSERT(4, sizeof(struct {int a:3; int c:1; int c:5;}));
+  ASSERT(8, sizeof(struct {int a:3; int:0; int c:5;}));
+  ASSERT(4, sizeof(struct {int a:3; int:0;}));
+
   printf("OK\n");
   return 0;
 }

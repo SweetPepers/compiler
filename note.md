@@ -5833,6 +5833,18 @@ codegen.c中
 parse.c 转换 A.X op= B 为 `TMP = &A, (*TMP).X = (*TMP).X op B`
 
 
+### 213 处理零宽度位域成员
+`ASSERT(8, sizeof(struct {int a:3; int:0; int c:5;}));`
+`ASSERT(4, sizeof(struct {int a:3; int:0;}));`
+parse.c::structDecl()  就是直接对齐到下个字节
+```c
+if (Mem->IsBitfield && Mem->BitWidth == 0) {
+      // 零宽度的位域有特殊含义，仅作用于对齐
+      Bits = alignTo(Bits, Mem->Ty->Size * 8);
+    } else if (Mem->IsBitfield) {
+      ...}
+```
+
 
 
 
