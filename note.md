@@ -5781,6 +5781,49 @@ codegen.c:
 - 值是移位后的值
   - 要读取原地址的值, 然后根据位宽和偏移等信息修改此字节中此位域相关的值, 再整个赋值
 
+### 211 支持全局结构体位域初始化器
+```c
+struct {
+  char a;
+  int b : 5;
+  int c : 10;
+} g45 = {1, 2, 3}, g46={};
+```
+
+parse中赋值, 基本思想也是获取原地址的值,改写后再写入
+```c
+  if (Ty->Kind == TY_STRUCT) {
+    for (Member *Mem = Ty->Mems; Mem; Mem = Mem->Next) {
+      if (Mem->IsBitfield) {
+        // 结构体位域成员
+        Node *Expr = Init->Children[Mem->Idx]->Expr;
+        if (!Expr)
+          break;
+
+        // 获取相对于缓冲区的偏移量
+        char *Loc = Buf + Offset + Mem->Offset;
+        // 读取已经写入的值
+        uint64_t OldVal = readBuf(Loc, Mem->Ty->Size);
+        // 计算需要写入的新值
+        uint64_t NewVal = eval(Expr);
+        // 获取位域长度的掩码
+        uint64_t Mask = (1L << Mem->BitWidth) - 1;
+        // 对新值取交位域长度的位，然后左移到相应的偏移位置
+        // 最后与旧值取或，得到合并之后的值
+        uint64_t Combined = OldVal | ((NewVal & Mask) << Mem->BitOffset);
+        // 写入合并之后的值
+        writeBuf(Loc, Combined, Mem->Ty->Size);
+      } else {
+        // 结构体常规成员
+        Cur = writeGVarData(Cur, Init->Children[Mem->Idx], Mem->Ty, Buf,
+                            Offset + Mem->Offset);
+      }
+    }
+    return Cur
+  }
+```
+
+
 
 
 
