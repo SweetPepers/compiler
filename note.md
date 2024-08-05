@@ -5914,6 +5914,33 @@ genFun中, 生成完语句stmt后, 给a0置零
   if (strcmp(Fn->Name, "main") == 0)
       printLn("  li a0, 0");
 ```
+### 220 支持匿名结构体和联合体
+不定义结构体名称,直接定义结构体成员
+`ASSERT(0xef, ({ union { struct { unsigned char a,b,c,d; }; long e; } x; x.e=0xdeadbeef; x.a; }));`
+```c
+struct foo_1 {float f;union {int x;};};
+int test_1(struct foo_1 in) { return in.f; } // 报错 no such member
+```
+
+这个还是结构体成员
+```c
+// 定义 structMembers()
+    // 匿名的结构体成员
+    if ((BaseTy->Kind == TY_STRUCT || BaseTy->Kind == TY_UNION) &&
+        consume(&Tok, Tok, ";")) {
+      Member *Mem = calloc(1, sizeof(Member));
+      Mem->Ty = BaseTy;
+      Mem->Idx = Idx++;
+      // 如果对齐值不存在，则使用匿名成员的对齐值
+      Mem->Align = Attr.Align ? Attr.Align : Mem->Ty->Align;
+      Cur = Cur->Next = Mem;
+      continue;
+    }
+
+// 取值, 本级不存在名字,就去上一级取值
+structRef();
+```
+
 
 
 
