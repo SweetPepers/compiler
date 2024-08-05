@@ -5941,6 +5941,20 @@ int test_1(struct foo_1 in) { return in.f; } // 报错 no such member
 structRef();
 ```
 
+### 221 支持__DATE__和__TIME__宏
+添加预定义的宏
+```c
+#include <time.h>
+
+  // 支持__DATE__和__TIME__
+  time_t Now = time(NULL);
+  // 获取当前的本地时区的时间
+  struct tm *Tm = localtime(&Now);
+  // 定义__DATE__为当前日期
+  defineMacro("__DATE__", formatDate(Tm));
+  // 定义__DATE__为当前时间
+  defineMacro("__TIME__", formatTime(Tm));
+```
 
 
 
