@@ -5956,6 +5956,10 @@ structRef();
   defineMacro("__TIME__", formatTime(Tm));
 ```
 
+### 222 [GNU] 支持__COUNTER__宏
+宏处理函数, 每次调用+1, 从0开始
+
+
 
 
 ## todo
