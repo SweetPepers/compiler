@@ -5959,6 +5959,33 @@ structRef();
 ### 222 [GNU] 支持__COUNTER__宏
 宏处理函数, 每次调用+1, 从0开始
 
+### 223 规范化换行符
+把 `\n\r`和`\r`都替换为`\n`
+tokenize.c:
+```c
+// 替换 \r 或 \r\n 为 \n
+static void canonicalizeNewline(char *P) {
+  int I = 0, J = 0;
+
+  while (P[I]) {
+    if (P[I] == '\r' && P[I + 1] == '\n') {
+      // 替换\r\n
+      I += 2;
+      P[J++] = '\n';
+    } else if (P[I] == '\r') {
+      // 替换\r
+      I++;
+      P[J++] = '\n';
+    } else {
+      P[J++] = P[I++];
+    }
+  }
+
+  P[J] = '\0';
+}
+```
+
+
 
 
 
