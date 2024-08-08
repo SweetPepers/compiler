@@ -6070,6 +6070,13 @@ ASSERT(3, ({ int あβ0¾=3; あβ0¾; }));
 ### 236 [GNU] 支持使用$作为标志符字符
 在unicode中添加一些额外可以使用的字符
 
+### 237 支持拼接常规字符串字面量和L u U字符串字面量
+```c
+  ASSERT(28, sizeof(L"abc" "def"));
+  ASSERT(28, sizeof(L"abc" L"def"));
+  ASSERT(14, sizeof(u"abc" "def"));
+```
+略
 
 ## todo
 - stage2阶段编译
