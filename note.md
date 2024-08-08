@@ -6056,6 +6056,8 @@ parse.c::stringInitializer()
   }
 ```
 
+### 234 预定义__STD_UTF_*__宏
+
 
 ## todo
 - stage2阶段编译
