@@ -5992,7 +5992,13 @@ UTF8
 
 todo 略
 
+### 225 支持多字节字符作为宽字符字面量
+```c
+  ASSERT(-1, L'\xffffffff' >> 31);
+  ASSERT(946, L'β');
+```
 
+todo 略
 
 
 
