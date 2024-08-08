@@ -5984,7 +5984,7 @@ static void canonicalizeNewline(char *P) {
   P[J] = '\0';
 }
 ```
-
+## UTF todo
 ### 224 支持\u和\U转义序列
 unicode: 一种标准方案来展示世界上所有语言中的所有字符  
 
@@ -6000,6 +6000,9 @@ todo 略
 
 todo 略
 
+### 226 支持UTF-16字符字面量
+L开头宽字符,两个字节
+u开头 UTF-16
 
 
 
