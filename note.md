@@ -6044,6 +6044,18 @@ parse.c::stringInitializer()
   }
 ```
 
+### 233 支持UTF-32字符串字面量初始化器
+同232 
+```c
+  case 4: {
+    // UTF-32类型/L
+    uint32_t *Str = (uint32_t *)Tok->Str;
+    for (int I = 0; I < Len; I++)
+      Init->Children[I]->Expr = newNum(Str[I], Tok);
+    break;
+  }
+```
+
 
 ## todo
 - stage2阶段编译
