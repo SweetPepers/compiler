@@ -391,6 +391,12 @@ void codegen(Obj *Prog, FILE *out);
 // 对齐
 int alignTo(int N, int Align);
 
+//
+// unicode 统一码
+//
+
+// 将unicode字符编码为UTF-8的格式
+int encodeUTF8(char *Buf, uint32_t C);
 
 //
 // 主程序，驱动文件

@@ -11,6 +11,7 @@ add_executable( rvcc
   type.c
   codegen.c
   preprocess.c
+  unicode.c
 )
 
 # 编译参数

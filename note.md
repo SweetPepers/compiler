@@ -5985,6 +5985,16 @@ static void canonicalizeNewline(char *P) {
 }
 ```
 
+### 224 支持\u和\U转义序列
+unicode: 一种标准方案来展示世界上所有语言中的所有字符  
+
+UTF8
+
+todo 略
+
+
+
+
 
 
 
