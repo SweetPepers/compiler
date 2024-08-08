@@ -390,6 +390,8 @@ Obj *parse(Token *Tok);
 void codegen(Obj *Prog, FILE *out);
 // 对齐
 int alignTo(int N, int Align);
+bool isIdent1_1(uint32_t C);
+bool isIdent2_1(uint32_t C);
 
 //
 // unicode 统一码

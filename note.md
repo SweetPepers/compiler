@@ -6059,6 +6059,15 @@ parse.c::stringInitializer()
 ### 234 预定义__STD_UTF_*__宏
 
 
+### 235 支持标识符使用多字节UTF-8字符
+```c
+ASSERT(3, π);
+ASSERT(3, ({ int あβ0¾=3; あβ0¾; }));
+```
+
+略
+
+
 ## todo
 - stage2阶段编译
 ```sh
