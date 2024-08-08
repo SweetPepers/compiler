@@ -956,6 +956,10 @@ Token *tokenizeFile(char *Path) {
   if (!P)
     return NULL;
 
+  // 读取UTF-8的BOM标记
+  if (!memcmp(P, "\xef\xbb\xbf", 3))
+    P += 3;
+
   // 规范化换行符
   canonicalizeNewline(P);
 
