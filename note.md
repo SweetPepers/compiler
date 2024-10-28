@@ -6098,6 +6098,43 @@ ASSERT(3, ({ int あβ0¾=3; あβ0¾; }));
 ```
 
 
+### 240 支持指派初始化不完整数组类型
+
+存在指派则重新计算一下当前的I
+```c
+// 计算数组初始化元素个数
+static int countArrayInitElements(Token *Tok, Type *Ty) {
+  bool First = true;
+  Initializer *Dummy = newInitializer(Ty->Base, true);
+
+  // 项数，最大项数
+  int I = 0, Max = 0;
+
+  // 遍历所有匹配的项  此时的 &Tok是个假的, 形参
+  while (!consumeEnd(&Tok, Tok)) {
+    if (!First)
+      Tok = skip(Tok, ",");
+        First = false;
+
+    // 处理指派
+    if (equal(Tok, "[")) {
+      I = constExpr(&Tok, Tok->Next);
+      if (equal(Tok, "..."))
+        I = constExpr(&Tok, Tok->Next);
+      Tok = skip(Tok, "]");
+      designation(&Tok, Tok, Dummy);
+    } else {
+      initializer2(&Tok, Tok, Dummy);
+    }
+
+    I++;
+    // 当前项数与之前最大项数取最大数
+    Max = MAX(Max, I);
+  }
+  return Max;
+}
+```
+
 ## todo
 - stage2阶段编译
 ```sh
