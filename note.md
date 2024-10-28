@@ -6135,6 +6135,10 @@ static int countArrayInitElements(Token *Tok, Type *Ty) {
 }
 ```
 
+
+### 241 [GNU] 指派初始化器允许省略=
+// designation = ("[" const-expr "]")* "="? initializer
+
 ## todo
 - stage2阶段编译
 ```sh
