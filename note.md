@@ -6220,6 +6220,48 @@ static Token *timestampMacro(Token *Tmpl) {
 
 #pragma warning：控制编译器警告的显示。可以用来禁用特定的警告信息，或者将警告信息当作错误处理。
 
+### 253 [GNU] 支持GCC风格的可变参数宏
+```c
+  printf("[253] [GNU] 支持GCC风格的可变参数宏\n");
+#define M14(args...) 3
+  ASSERT(3, M14());
+  
+#define M14(x, ...) x
+  ASSERT(5, M14(5));
+```
+相当于可以直接0个参数
+
+可变参数的名称不仅为__VA_ARGS__
+
+```c
+// 宏函数实参
+typedef struct MacroArg MacroArg;
+struct MacroArg {
+  MacroArg *Next; // 下一个
+  char *Name;     // 名称
+  bool IsVaArg;   // 是否为可变参数
+  Token *Tok;     // 对应的终结符链表
+};
+
+// 宏处理函数
+typedef Token *macroHandlerFn(Token *);
+
+// 定义的宏变量
+typedef struct Macro Macro;
+struct Macro {
+  Macro *Next;             // 下一个
+  char *Name;              // 名称
+  bool IsObjlike;          // 宏变量为真，或者宏函数为假
+  MacroParam *Params;      // 宏函数参数
+  char *VaArgsName;        // 可变参数
+  Token *Body;             // 对应的终结符
+  bool Deleted;            // 是否被删除了
+  macroHandlerFn *Handler; // 宏处理函数
+};
+```
+
+
+
 ## todo
 - stage2阶段编译
 ```sh
