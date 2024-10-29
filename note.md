@@ -6170,6 +6170,11 @@ static int countArrayInitElements(Token *Tok, Type *Ty) {
   ASSERT(0, strcmp(__FILE__, "bar"));
 ```
 
+
+### 247 [GNU] 支持行标记指示
+另一种 `#line`的实现
+
+
 ## todo
 - stage2阶段编译
 ```sh

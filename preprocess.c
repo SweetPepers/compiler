@@ -995,6 +995,13 @@ static Token *preprocess2(Token *Tok) {
       continue;
     }
 
+    // 匹配#
+    if (Tok->Kind == TK_PP_NUM) {
+      // 进入到对行标记的读取
+      readLineMarker(&Tok, Tok);
+      continue;
+    }
+
     // 匹配#error
     if (equal(Tok, "error"))
       errorTok(Tok, "error");
@@ -1268,7 +1275,7 @@ Token *preprocess(Token *Tok) {
   convertPPTokens(Tok);
   // 拼接相邻的字符串字面量
   joinAdjacentStringLiterals(Tok);
-  
+
   // 原有行号加上标记的行号差值，即为新行号
   for (Token *T = Tok; T; T = T->Next)
     T->LineNo += T->LineDelta;
