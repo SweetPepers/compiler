@@ -6260,6 +6260,46 @@ struct Macro {
 };
 ```
 
+### 254 支持typeof
+声明类型替换
+
+
+```c
+// 语法
+// declspec =  ("void" | "_Bool" | "char" | "short" | "int" |"long" 
+//            | "float" | "double"
+//            | "typedef" | "static" | "extern"
+//            | "_Alignas" ("(" typename | constExpr ")")
+//            | "signed" | "unsigned"
+//            | "struct" structDecl | "union" unionDecl
+//            | "enum" enumSpecifier
+//            | "typeof" typeofSpecifier
+//            | "const" | "volatile" | "auto" | "register" | "restrict"
+//            | "__restrict" | "__restrict__" | "_Noreturn")+
+
+static Type *typeofSpecifier(Token **Rest, Token *Tok) {
+  // "("
+  Tok = skip(Tok, "(");
+
+  Type *Ty;
+  if (isTypename(Tok)) {
+    // typename
+    // 匹配到相应的类型
+    Ty = typename(&Tok, Tok);
+  } else {
+    // expr
+    // 计算表达式，然后获取表达式的类型
+    Node *Nd = expr(&Tok, Tok);
+    addType(Nd);
+    Ty = Nd->Ty;
+  }
+  // ")"
+  *Rest = skip(Tok, ")");
+  // 将获取的类型进行返回
+  return Ty;
+}
+```
+
 
 
 ## todo
