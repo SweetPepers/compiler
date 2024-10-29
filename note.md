@@ -6147,6 +6147,18 @@ static int countArrayInitElements(Token *Tok, Type *Ty) {
 
 但是局部变量和全局变量做了处理, 优先返回初始化器指派的成员(以前是默认返回第一个)
 
+### 244 为匿名结构体成员处理结构体指派器
+修改structDesignator()函数, 使用
+```c
+    if (Mem->Ty->Kind == TY_STRUCT && !Mem->Name) {
+      if (getStructMember(Mem->Ty, Tok)) {
+        *Rest = Start;
+        return Mem;
+      }
+      continue;
+    }
+```
+
 ## todo
 - stage2阶段编译
 ```sh

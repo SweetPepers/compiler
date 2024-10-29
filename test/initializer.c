@@ -314,6 +314,12 @@ int main() {
   printf("[243] 支持联合体指派初始化器\n");
   ASSERT(0x00ff, ({ union { unsigned short a; char b[2]; } x={.b[0]=0xff}; x.a; }));
   ASSERT(0xff00, ({ union { unsigned short a; char b[2]; } x={.b[1]=0xff}; x.a; }));
+  
+  printf("[244] 为匿名结构体成员处理结构体指派器\n");
+  ASSERT(1, ({ struct { struct { int a; struct { int b; }; }; int c; } x={1,2,3,.b=4,5}; x.a; }));
+  ASSERT(4, ({ struct { struct { int a; struct { int b; }; }; int c; } x={1,2,3,.b=4,5}; x.b; }));
+  ASSERT(5, ({ struct { struct { int a; struct { int b; }; }; int c; } x={1,2,3,.b=4,5}; x.c; }));
+
 
   ASSERT(0x00120000, g50.a);
   ASSERT(0, g51[0].a);
