@@ -6200,6 +6200,11 @@ static Token *timestampMacro(Token *Tmpl) {
 ### 249 [GNU] 支持__BASE_FILE__宏
 类似, 返回basefile
 
+### 250 支持__VA_OPT__
+这个是干什么的?
+
+如果后面有__VA_ARGS__, 那么就把__VA_OPT__()中的东西展开
+
 ## todo
 - stage2阶段编译
 ```sh
