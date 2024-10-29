@@ -1093,6 +1093,12 @@ static char *formatDate(struct tm *Tm) {
                 Tm->tm_year + 1900);
 }
 
+// 主输入文件名
+static Token *baseFileMacro(Token *Tmpl) {
+  // 将输入文件的名称进行返回
+  return newStrToken(BaseFile, Tmpl);
+}
+
 // 为__TIME__设置为当前时间，例如："10:23:45"
 static char *formatTime(struct tm *Tm) {
   // 时，分，秒
@@ -1153,8 +1159,10 @@ void initMacros(void) {
   addBuiltin("__LINE__", lineMacro);
   // 支持__COUNTER__
   addBuiltin("__COUNTER__", counterMacro);
-    // 支持__TIMESTAMP__
+  // 支持__TIMESTAMP__
   addBuiltin("__TIMESTAMP__", timestampMacro);
+  // 支持__BASE_FILE__
+  addBuiltin("__BASE_FILE__", baseFileMacro);
 
   // 支持__DATE__和__TIME__
   time_t Now = time(NULL);

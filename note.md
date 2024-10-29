@@ -6196,6 +6196,10 @@ static Token *timestampMacro(Token *Tmpl) {
 
 ```
 
+
+### 249 [GNU] 支持__BASE_FILE__宏
+类似, 返回basefile
+
 ## todo
 - stage2阶段编译
 ```sh
