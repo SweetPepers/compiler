@@ -6205,6 +6205,12 @@ static Token *timestampMacro(Token *Tmpl) {
 
 如果后面有__VA_ARGS__, 那么就把__VA_OPT__()中的东西展开
 
+
+### 251 [GNU] 处理 ## __VA_ARGS__
+跟上一个效果差不多
+- 若__VA_ARGS__为空，  则 `,##__VA_ARGS__` 展开为空
+- 若__VA_ARGS__不为空，则 `,##__VA_ARGS__` 展开为 `,` 和 __VA_ARGS__
+
 ## todo
 - stage2阶段编译
 ```sh
