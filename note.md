@@ -6174,6 +6174,27 @@ static int countArrayInitElements(Token *Tok, Type *Ty) {
 ### 247 [GNU] 支持行标记指示
 另一种 `#line`的实现
 
+### 248 [GNU] 支持__TIMESTAMP__宏
+类似__LINE__和__FILE__的实现
+返回当前文件的最后修改时间
+
+```c
+// 时间戳描述了当前文件的最后修改时间，示例为：
+// "Fri Jul 24 01:32:50 2020"
+static Token *timestampMacro(Token *Tmpl) {
+  struct stat St;
+  // 如果文件打开失败，则不显示具体时间
+  if (stat(Tmpl->File->Name, &St) != 0)
+    return newStrToken("??? ??? ?? ??:??:?? ????", Tmpl);
+
+  char Buf[30];
+  // 将文件最后修改时间写入Buf
+  ctime_r(&St.st_mtime, Buf);
+  Buf[24] = '\0';
+  return newStrToken(Buf, Tmpl);
+}
+
+```
 
 ## todo
 - stage2阶段编译
