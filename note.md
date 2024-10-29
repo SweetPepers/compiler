@@ -6162,6 +6162,14 @@ static int countArrayInitElements(Token *Tok, Type *Ty) {
 ### 245 改进多字节字符报错信息
 略
 
+### 246 支持`#line`
+指定新的行号以及名称
+```c
+#line 800 "bar"
+  ASSERT(801, __LINE__);
+  ASSERT(0, strcmp(__FILE__, "bar"));
+```
+
 ## todo
 - stage2阶段编译
 ```sh
