@@ -6159,6 +6159,9 @@ static int countArrayInitElements(Token *Tok, Type *Ty) {
     }
 ```
 
+### 245 改进多字节字符报错信息
+略
+
 ## todo
 - stage2阶段编译
 ```sh
