@@ -6211,6 +6211,15 @@ static Token *timestampMacro(Token *Tmpl) {
 - 若__VA_ARGS__为空，  则 `,##__VA_ARGS__` 展开为空
 - 若__VA_ARGS__不为空，则 `,##__VA_ARGS__` 展开为 `,` 和 __VA_ARGS__
 
+### 252 忽略#pragma
+直接跳过整行
+
+#pragma once：确保头文件只被包含一次，防止头文件的内容被多次复制到不同的编译单元中。
+
+#pragma pack(n)：指定结构体或联合体成员的内存对齐方式。n可以是1、2、4、8等，表示成员对齐的字节数。这对于控制结构体的内存布局非常有用。
+
+#pragma warning：控制编译器警告的显示。可以用来禁用特定的警告信息，或者将警告信息当作错误处理。
+
 ## todo
 - stage2阶段编译
 ```sh
