@@ -148,7 +148,7 @@ static Node *CurrentSwitch;
 // assignOp = "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>="
 // assign = conditional (assignOp assign)?
 // constExpr = conditional -> num
-// conditional = logOr ("?" expr ":" conditional)?
+// conditional = logOr ("?" expr? ":" conditional)?
 // logOr = logAnd ("||" logAnd)*
 // logAnd = bitOr ("&&" bitOr)*
 // bitOr = bitXor ("|" bitXor)*
@@ -2327,7 +2327,7 @@ static Node *assign(Token **Rest, Token *Tok) {
 }
 
 // 解析条件运算符
-// conditional = logOr ("?" expr ":" conditional)?
+// conditional = logOr ("?" expr? ":" conditional)?
 static Node *conditional(Token **Rest, Token *Tok) {
   // logOr
   Node *Cond = logOr(&Tok, Tok);
@@ -2336,6 +2336,23 @@ static Node *conditional(Token **Rest, Token *Tok) {
   if (!equal(Tok, "?")) {
     *Rest = Tok;
     return Cond;
+  }
+
+  // "?" ":"
+  if (equal(Tok->Next, ":")) {
+    // `A ?: B` 等价于 `Tmp = A, Tmp ? Tmp : B`
+    addType(Cond);
+    // Tmp
+    Obj *Var = newLVar("", Cond->Ty);
+    // Tmp = A
+    Node *LHS = newBinary(ND_ASSIGN, newVarNode(Var, Tok), Cond, Tok);
+    // Tmp ? Tmp : B
+    Node *RHS = newNode(ND_COND, Tok);
+    RHS->Cond = newVarNode(Var, Tok);
+    RHS->Then = newVarNode(Var, Tok);
+    RHS->Els = conditional(Rest, Tok->Next->Next);
+    // Tmp = A, Tmp ? Tmp : B
+    return newBinary(ND_COMMA, LHS, RHS, Tok);
   }
 
   // expr ":" conditional

@@ -6327,6 +6327,11 @@ static Type *typeofSpecifier(Token **Rest, Token *Tok) {
 ### 257 [GNU] 支持sizeof函数类型
 函数类型的大小是1
 
+### 258 [GNU] 支持?:使用操作数
+x = a?:b  <==> x = a ? a:b
+如果!a,则x=b
+
+`A ?: B` 等价于 `Tmp = A, Tmp ? Tmp : B`
 
 
 ## todo
