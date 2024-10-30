@@ -2073,6 +2073,11 @@ void emitText(Obj *Prog) {
   for (Obj *Fn = Prog; Fn; Fn = Fn->Next) {
     if (!Fn->IsFunction || !Fn->IsDefinition)
       continue;
+    
+    // 如果未存活，就不生成static inline函数
+    if (!Fn->IsLive)
+      continue;
+
     genFun(Fn);
   }
 }

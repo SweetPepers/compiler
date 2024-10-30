@@ -6367,6 +6367,13 @@ codegen中直接print就可以
 ### 260 将inline函数作为static函数
 不明白干啥的 todo
 
+### 261 如果没被引用不生成static inline函数
+在解析函数时, 如果primary是个函数则如栈
+后续将所有函数按树尽兴标记
+
+最后生成代码时, 跳过未被标记的函数
+
+
 ## todo
 - stage2阶段编译
 ```sh
@@ -6399,6 +6406,8 @@ static Obj *newGVar(char *Name, Type *Ty) {
 - rvcc自举 197
 - 这个代码要是写错了, 我怎么debug?
 - 将.s文件中间态打印出来
+
+grep -v 可以反选? driver.sh:168
 
 ### 反馈
 200里面 parse.c::funCall出错了
