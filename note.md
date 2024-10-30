@@ -6376,6 +6376,12 @@ codegen中直接print就可以
 ### 262 使用__attribute__((format(printf, ...)))查找程序错误
 什么意思?
 
+### 263 支持-idirafter选项
+编译时将idirafter指定的目录中的所有文件全都include进来
+
+todo -I
+
+
 
 ## todo
 - stage2阶段编译
