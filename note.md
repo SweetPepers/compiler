@@ -6373,6 +6373,9 @@ codegen中直接print就可以
 
 最后生成代码时, 跳过未被标记的函数
 
+### 262 使用__attribute__((format(printf, ...)))查找程序错误
+什么意思?
+
 
 ## todo
 - stage2阶段编译
