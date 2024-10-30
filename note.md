@@ -6381,6 +6381,8 @@ codegen中直接print就可以
 
 todo -I
 
+### 264 支持offsetof
+`#define offsetof(type, member) ((size_t) & (((type *)0)->member))`
 
 
 ## todo
