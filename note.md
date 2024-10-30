@@ -6300,6 +6300,22 @@ static Type *typeofSpecifier(Token **Rest, Token *Tok) {
 }
 ```
 
+### 255 [GNU] 支持__builtin_types_compatible_p
+判断两个type是否是兼容的
+语法
+```c
+// primary = "(" "{" stmt+ "}" ")"
+//         | "(" expr ")"
+//         | "sizeof" "(" typeName ")"
+//         | "sizeof" unary
+//         | "_Alignof" "(" typeName ")"
+//         | "_Alignof" unary
+//         | "__builtin_types_compatible_p" "(" typeName, typeName, ")"
+//         | ident
+//         | str
+//         | num
+```
+
 
 
 ## todo
