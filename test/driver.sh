@@ -1,4 +1,5 @@
 #!/bin/bash
+# 使用 ./test/driver.sh ./rvcc
 rvcc=$1
 RISCV=~/riscv
 
@@ -140,5 +141,18 @@ check 'ignored options'
 # [238] 跳过UTF-8 BOM标记
 printf '\xef\xbb\xbfxyz\n' | $rvcc -E -o- - | grep -q '^xyz'
 check 'BOM marker'
+
+# Inline functions
+# [260] 将inline函数作为static函数
+echo 'inline void foo() {}' > $tmp/inline1.c
+echo 'inline void foo() {}' > $tmp/inline2.c
+echo 'int main() { return 0; }' > $tmp/inline3.c
+$rvcc -o /dev/null $tmp/inline1.c $tmp/inline2.c $tmp/inline3.c
+check inline
+
+echo 'extern inline void foo() {}' > $tmp/inline1.c
+echo 'int foo(); int main() { foo(); }' > $tmp/inline2.c
+$rvcc -o /dev/null $tmp/inline1.c $tmp/inline2.c
+check inline
 
 echo OK

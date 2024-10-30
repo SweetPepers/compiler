@@ -4,7 +4,10 @@
 extern int ext1;
 extern int *ext2;
 
-
+// [260] 将inline函数作为static函数
+inline int inline_fn(void) {
+  return 3;
+}
 
 int main() {
   // [116] 支持extern

@@ -36,6 +36,7 @@ typedef struct {
   bool IsTypedef; // 是否为类型别名
   bool IsStatic;  // 是否为文件域内
   bool IsExtern;  // 是否为外部变量
+  bool IsInline;  // 是否为内联
   int Align;      // 对齐量
 } VarAttr;
 
@@ -97,7 +98,7 @@ static Node *CurrentSwitch;
 // global-variable = (declarator( "=" GVarinitializer)?)?("," declarator("=" GVarinitializer)?)* ";"
 // declspec =  ("void" | "_Bool" | "char" | "short" | "int" |"long" 
 //            | "float" | "double"
-//            | "typedef" | "static" | "extern"
+//            | "typedef" | "static" | "extern" | "inline"
 //            | "_Alignas" ("(" typename | constExpr ")")
 //            | "signed" | "unsigned"
 //            | "struct" structDecl | "union" unionDecl
@@ -492,7 +493,8 @@ static bool isTypename(Token *Tok) {
       "enum", "static", "extern","_Alignas", 
       "signed", "unsigned", "const", "volatile", 
       "auto", "register", "restrict", "__restrict", 
-      "__restrict__", "_Noreturn","float", "double", "typeof",
+      "__restrict__", "_Noreturn","float", "double", 
+      "typeof", "inline",
   };
 
   for (int I = 0; I < sizeof(Kw) / sizeof(*Kw); ++I) {
@@ -560,7 +562,7 @@ static Type *typename(Token **Rest, Token *Tok) {
 
 // declspec =  ("void" | "_Bool" | "char" | "short" | "int" |"long" 
 //            | "float" | "double"
-//            | "typedef" | "static" | "extern"
+//            | "typedef" | "static" | "extern" | "inline"
 //            | "_Alignas" ("(" typename | constExpr ")")
 //            | "signed" | "unsigned"
 //            | "struct" structDecl | "union" unionDecl
@@ -591,18 +593,20 @@ static Type *declspec(Token **Rest, Token *Tok, VarAttr *Attr) {
   // 遍历所有类型名的Tok
   while (isTypename(Tok)) {
     // 处理typedef关键字
-    if (equal(Tok, "typedef") || equal(Tok, "static") || equal(Tok, "extern")) {
+    if (equal(Tok, "typedef") || equal(Tok, "static") || equal(Tok, "extern") || equal(Tok, "inline")) {
       if (!Attr)
         errorTok(Tok, "storage class specifier is not allowed in this context");
       if (equal(Tok, "typedef"))
         Attr->IsTypedef = true;
       else if (equal(Tok, "static"))
         Attr->IsStatic = true;
-      else
+      else if (equal(Tok, "extern"))
         Attr->IsExtern = true;
+      else
+        Attr->IsInline = true;
       // typedef不应与static/extern一起使用
-      if (Attr->IsTypedef && (Attr->IsStatic || Attr->IsExtern))
-        errorTok(Tok, "typedef and static/extern may not be used together");
+      if (Attr->IsTypedef && (Attr->IsStatic || Attr->IsExtern || Attr->IsInline))
+        errorTok(Tok, "typedef and static/extern/inline may not be used together");
       Tok = Tok->Next;
       continue;
     }
@@ -3352,7 +3356,8 @@ static Token *function(Token *Tok, Type *BaseTy, VarAttr *Attr) {
   Obj *Fn = newGVar(getIdent(Ty->Name), Ty);  // 函数为全局变量
   Fn->IsFunction = true;
   Fn->IsDefinition = !consume(&Tok, Tok, ";");
-  Fn->IsStatic = Attr->IsStatic;
+  Fn->IsStatic = Attr->IsStatic || (Attr->IsInline && !Attr->IsExtern);
+  Fn->IsInline = Attr->IsInline;
 
   // 判断是否没有函数定义
   if (!Fn->IsDefinition)

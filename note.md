@@ -6364,6 +6364,9 @@ static Node *asmStmt(Token **Rest, Token *Tok) {
 
 codegen中直接print就可以
 
+### 260 将inline函数作为static函数
+不明白干啥的 todo
+
 ## todo
 - stage2阶段编译
 ```sh
