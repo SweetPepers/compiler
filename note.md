@@ -6316,6 +6316,17 @@ static Type *typeofSpecifier(Token **Rest, Token *Tok) {
 //         | num
 ```
 
+### 256 支持_Generic
+```c
+  ASSERT(3, _Generic(100, double: 1, int *: 2, int: 3, float: 4));
+  ASSERT(4, _Generic(100f, double: 1, int *: 2, int: 3, float: 4));
+```
+根据前面值的类型,返回值
+语法也是写在primary里面
+
+### 257 [GNU] 支持sizeof函数类型
+函数类型的大小是1
+
 
 
 ## todo

@@ -127,7 +127,8 @@ Type *arrayOf(Type *Base, int Len) {
 
 // 函数类型，并赋返回类型
 Type *funcType(Type *ReturnTy) {
-  Type *Ty = calloc(1, sizeof(Type));
+  // C语言标准不允许sizeof(<function type>)，但GCC允许计算为1
+  Type *Ty = newType(TY_FUNC, 1, 1);
   Ty->Kind = TY_FUNC;
   Ty->ReturnTy = ReturnTy;
   return Ty;
