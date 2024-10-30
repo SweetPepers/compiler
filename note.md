@@ -6334,6 +6334,36 @@ x = a?:b  <==> x = a ? a:b
 `A ?: B` 等价于 `Tmp = A, Tmp ? Tmp : B`
 
 
+### 259 支持asm语句
+struct Node 中添加AsmStr存储asm后面的字符串
+` asm inline volatile("li a0, 55");`
+inline 和 volatile直接忽略
+
+
+```c
+// asmStmt = "asm" ("volatile" | "inline")* "(" stringLiteral ")"
+static Node *asmStmt(Token **Rest, Token *Tok) {
+  Node *Nd = newNode(ND_ASM, Tok);
+  Tok = Tok->Next;
+
+  // ("volatile" | "inline")*
+  while (equal(Tok, "volatile") || equal(Tok, "inline"))
+    Tok = Tok->Next;
+
+  // "("
+  Tok = skip(Tok, "(");
+  // stringLiteral
+  if (Tok->Kind != TK_STR || Tok->Ty->Base->Kind != TY_CHAR)
+    errorTok(Tok, "expected string literal");
+  Nd->AsmStr = Tok->Str;
+  // ")"
+  *Rest = skip(Tok->Next, ")");
+  return Nd;
+}
+```
+
+codegen中直接print就可以
+
 ## todo
 - stage2阶段编译
 ```sh
