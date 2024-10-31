@@ -6385,6 +6385,23 @@ todo -I
 `#define offsetof(type, member) ((size_t) & (((type *)0)->member))`
 
 
+### 265 支持试探性定义
+```c
+int x;
+int x = 5;
+int y = 7;
+int y;
+```
+`symbol 'y' is already defined`
+没有初始化器的全局变量设为试探性的
+
+如果全局有定义的话,就替换var
+
+否则生成 .comm
+
+### 266 支持-fcommon和-fno-common选项
+编译选项, 是否加 .comm?
+
 ## todo
 - stage2阶段编译
 ```sh
