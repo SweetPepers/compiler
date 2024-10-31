@@ -32,10 +32,10 @@ $(OBJS): rvcc.h
 # 测试标签，运行测试
 test/%.exe: rvcc test/%.c
 #	$(CC) -o- -E -P -C test/$*.c | ./rvcc -c -o test/$*.o -
-	./rvcc -Iinclude -Itest -c -o test/$*.o test/$*.c
+	./rvcc -Iinclude -Itest -I$(RISCV)/sysroot/usr/include  -c -o test/$*.o test/$*.c
 # riscv64-linux-gnu-gcc -o- -E -P -C test/$*.c | ./rvcc -o test/$*.s -
 # $(CC) -o $@ test/$*.o -xc test/common
-	riscv64-linux-gnu-gcc -static -o $@ test/$*.o -xc test/common
+	riscv64-linux-gnu-gcc -pthread -static -o $@ test/$*.o -xc test/common
 
 run/%: test/%.exe
 	qemu-riscv64 -L $(RISCV)/sysroot test/$*.exe || exit 1

@@ -91,6 +91,15 @@ static void genAddr(Node *Nd) {
       printLn("  add a0, fp, t0");
       return;
     }
+
+    // 线程局部变量
+    if (Nd->Var->IsTLS) {
+      // 计算TLS高20位地址
+      printLn("  lui a0, %%tprel_hi(%s)", Nd->Var->Name);
+      // 计算TLS低12位地址
+      printLn("  addi a0, a0, %%tprel_lo(%s)", Nd->Var->Name);
+      return;
+    }
 #if 0
     else{ // 全局变量 or 函数
         printLn("  # 获取%s%s的地址", Nd->Ty->Kind == TY_FUNC ? "函数" : "全局变量", Nd->Var->Name);
@@ -1760,9 +1769,19 @@ static void emitData(Obj *Prog) {
     }
 
     // 判断是否有初始值
+    // .data 或 .tdata 段
     if (Var->InitData) {
-      printLn("\n  # 数据段标签");
-      printLn("  .data");
+      if (Var->IsTLS) {
+        printLn("\n  # TLS数据段标签");
+        // a：可加载执行
+        // w：可写
+        // T：线程局部的
+        // progbits：包含程序数据
+        printLn("  .section .tdata,\"awT\",@progbits");
+      } else {
+        printLn("\n  # 数据段标签");
+        printLn("  .data");
+      }
       printLn("%s:", Var->Name);
       // 打印出字符串的内容, 包括转义字符
       Relocation *Rel = Var->Rel;
@@ -1786,8 +1805,15 @@ static void emitData(Obj *Prog) {
       }
     }else {
       // bss段未给数据分配空间, 只记录数据所需空间的大小
-      printLn("  # 未初始化的全局变量");
-      printLn("  .bss");
+      // .bss 或 .tbss 段
+      if (Var->IsTLS) {
+        // nobits：不含数据
+        printLn("\n  # TLS未初始化的全局变量");
+        printLn("  .section .tbss,\"awT\",@nobits");
+      } else {
+        printLn("\n  # 未初始化的全局变量");
+        printLn("  .bss");
+      }
       printLn("%s:", Var->Name);
       printLn("  # 全局变量零填充%d位", Var->Ty->Size);
       printLn("  .zero %d", Var->Ty->Size);

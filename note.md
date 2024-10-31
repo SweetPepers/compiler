@@ -6402,6 +6402,17 @@ int y;
 ### 266 支持-fcommon和-fno-common选项
 编译选项, 是否加 .comm?
 
+### 267 支持线程局部变量
+```c
+_Thread_local int v1;
+_Thread_local int v2 = 5;
+int v3 = 7;
+```
+
+每个线程有自己独立的变量v1,v2
+主要在codegen
+
+
 ## todo
 - stage2阶段编译
 ```sh
