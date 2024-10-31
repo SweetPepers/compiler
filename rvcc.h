@@ -141,6 +141,8 @@ Token *tokenize(File *FP);
 // 预处理器
 //
 
+// 搜索引入路径区
+char *searchIncludePaths(char *Filename);
 void initMacros(void);
 void defineMacro(char *Name, char *Buf);
 void undefMacro(char *Name);

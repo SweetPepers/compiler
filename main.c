@@ -5,11 +5,23 @@
 // 注意 ~ 应替换为具体的 /home/用户名 的路径
 static char *RVPath = "/root/riscv";
 
+// 文件类型
+typedef enum {
+  FILE_NONE, // 空类型
+  FILE_C,    // C语言源代码类型
+  FILE_ASM,  // 汇编代码类型
+  FILE_OBJ   // 可重定位文件类型
+} FileType;
+
 // 引入路径区
 StringArray IncludePaths;
 // common块默认生成
 bool OptFCommon = true;
 
+// -x选项
+static FileType OptX;
+// -include所引入的文件
+static StringArray OptInclude;
 // -E选项
 static bool OptE;
 // -S选项
@@ -42,7 +54,7 @@ static void usage(int Status) {
 
 // 判断需要一个参数的选项，是否具有一个参数
 static bool takeArg(char *Arg) {
-  char *X[] = {"-o", "-I", "-idirafter"};
+  char *X[] = {"-o", "-I", "-idirafter", "-include", "-x"};
 
   for (int I = 0; I < sizeof(X) / sizeof(*X); I++)
     if (!strcmp(Arg, X[I]))
@@ -82,6 +94,20 @@ static void define(char *Str) {
   else
     // 不存在赋值，则设为1
     defineMacro(Str, "1");
+}
+
+// 解析-x选项
+static FileType parseOptX(char *S) {
+  // -xc，解析为C语言源代码
+  if (!strcmp(S, "c"))
+    return FILE_C;
+  // -xassembler，解析为汇编源代码
+  if (!strcmp(S, "assembler"))
+    return FILE_ASM;
+  // -xnone，解析为空类型
+  if (!strcmp(S, "none"))
+    return FILE_NONE;
+  error("<command line>: unknown argument for -x: %s", S);
 }
 
 // rvcc [ -o <path> ] <file>
@@ -186,6 +212,24 @@ static void parseArgs(int Argc, char **Argv) {
     // 解析-U
     if (!strncmp(Argv[I], "-U", 2)) {
       undefMacro(Argv[I] + 2);
+      continue;
+    }
+
+    // 解析-include
+    if (!strcmp(Argv[I], "-include")) {
+      strArrayPush(&OptInclude, Argv[++I]);
+      continue;
+    }
+
+    // 解析-x
+    if (!strcmp(Argv[I], "-x")) {
+      OptX = parseOptX(Argv[++I]);
+      continue;
+    }
+
+    // 解析-x
+    if (!strncmp(Argv[I], "-x", 2)) {
+      OptX = parseOptX(Argv[I] + 2);
       continue;
     }
 
@@ -366,13 +410,59 @@ static void printTokens(Token *Tok) {
   fprintf(Out, "\n");
 }
 
-// 编译C文件到汇编文件
-static void cc1(void) {
-  // 解析文件，生成终结符流
-  Token *Tok = tokenizeFile(BaseFile);
+// 解析文件，生成终结符流
+static Token *mustTokenizeFile(char *Path) {
+  Token *Tok = tokenizeFile(Path);
   // 终结符流生成失败，对应文件报错
   if (!Tok)
-    error("%s: %s", BaseFile, strerror(errno));
+    error("%s: %s", Path, strerror(errno));
+  return Tok;
+}
+
+// 拼接终结符链表
+static Token *appendTokens(Token *Tok1, Token *Tok2) {
+  // Tok1为空时直接返回Tok2
+  if (!Tok1 || Tok1->Kind == TK_EOF)
+    return Tok2;
+
+  // 链表指针T
+  Token *T = Tok1;
+  // T指向遍历到Tok1链表中最后一个
+  while (T->Next->Kind != TK_EOF)
+    T = T->Next;
+  // T->Next指向Tok2
+  T->Next = Tok2;
+  // 返回拼接好的Tok1
+  return Tok1;
+}
+
+// 编译C文件到汇编文件
+static void cc1(void) {
+  Token *Tok = NULL;
+
+  // 处理-include选项
+  for (int I = 0; I < OptInclude.Len; I++) {
+    // 需要引入的文件
+    char *Incl = OptInclude.Data[I];
+
+    char *Path;
+    if (fileExists(Incl)) {
+      // 如果文件存在，则直接使用路径
+      Path = Incl;
+    } else {
+      // 否则搜索引入路径区
+      Path = searchIncludePaths(Incl);
+      if (!Path)
+        error("-include: %s: %s", Incl, strerror(errno));
+    }
+
+    // 解析文件，生成终结符流
+    Token *Tok2 = mustTokenizeFile(Path);
+    Tok = appendTokens(Tok, Tok2);
+  }
+  // 解析文件，生成终结符流
+  Token *Tok2 = mustTokenizeFile(BaseFile);
+  Tok = appendTokens(Tok, Tok2);
 
   // 预处理
   Tok = preprocess(Tok);
@@ -543,6 +633,26 @@ static void runLinker(StringArray *Inputs, char *Output) {
   runSubprocess(Arr.Data);
 }
 
+// 获取文件的类型
+static FileType getFileType(char *Filename) {
+  // 以.o结尾的文件，解析为空重定位文件类型
+  if (endsWith(Filename, ".o"))
+    return FILE_OBJ;
+
+  // 若-x指定了不为空的类型，使用该类型
+  if (OptX != FILE_NONE)
+    return OptX;
+
+  // 以.c结尾的文件，解析为C语言源代码类型
+  if (endsWith(Filename, ".c"))
+    return FILE_C;
+  // 以.s结尾的文件，解析为汇编类型
+  if (endsWith(Filename, ".s"))
+    return FILE_ASM;
+
+  error("<command line>: unknown file extension: %s", Filename);
+}
+
 // 编译器驱动流程
 //
 // 源文件
@@ -598,15 +708,18 @@ int main(int Argc, char **Argv) {
     else
       Output = replaceExtn(Input, ".o");
 
+    // 获取输入文件的类型
+    FileType Ty = getFileType(Input);
+
     // 处理.o文件
-    if (endsWith(Input, ".o")) {
+    if (Ty == FILE_OBJ) {
       // 存入链接器选项中
       strArrayPush(&LdArgs, Input);
       continue;
     }
 
     // 处理.s文件
-    if (endsWith(Input, ".s")) {
+    if (Ty == FILE_ASM) {
       // 如果没有指定-S，那么需要进行汇编
       if (!OptS)
         assemble(Input, Output);
@@ -614,8 +727,7 @@ int main(int Argc, char **Argv) {
     }
 
     // 处理.c文件
-    if (!endsWith(Input, ".c") && strcmp(Input, "-"))
-      error("unknown file extension: %s", Input);
+    assert(Ty == FILE_C);
 
     // 只进行解析
     if (OptE) {

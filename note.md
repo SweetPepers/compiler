@@ -6412,6 +6412,26 @@ int v3 = 7;
 每个线程有自己独立的变量v1,v2
 主要在codegen
 
+### 268 支持-include选项
+```c
+  for (int I = 0; I < OptInclude.Len; I++) {
+    // 需要引入的文件
+    char *Incl = OptInclude.Data[I];
+
+    char *Path;
+    if (fileExists(Incl)) {
+      // 如果文件存在，则直接使用路径
+      Path = Incl;
+    } else {
+      // 否则搜索引入路径区
+      Path = searchIncludePaths(Incl);
+      if (!Path)
+        error("-include: %s: %s", Incl, strerror(errno));
+    }
+```
+
+### 269 支持-x选项
+
 
 ## todo
 - stage2阶段编译
