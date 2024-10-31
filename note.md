@@ -6431,6 +6431,26 @@ int v3 = 7;
 ```
 
 ### 269 支持-x选项
+-x指定输入文件类型
+
+```c
+// 解析-x选项
+static FileType parseOptX(char *S) {
+  // -xc，解析为C语言源代码
+  if (!strcmp(S, "c"))
+    return FILE_C;
+  // -xassembler，解析为汇编源代码
+  if (!strcmp(S, "assembler"))
+    return FILE_ASM;
+  // -xnone，解析为空类型
+  if (!strcmp(S, "none"))
+    return FILE_NONE;
+  error("<command line>: unknown argument for -x: %s", S);
+}
+```
+
+
+
 
 
 ## todo
