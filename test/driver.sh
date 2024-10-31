@@ -222,4 +222,9 @@ check -include
 echo NULL | $rvcc -I$RISCV/sysroot/usr/include/ -Iinclude -include stdio.h -E -o- -xc - | grep -q 0
 check -include
 
+# [270] 使-E包含-xc
+echo foo | $rvcc -E - | grep -q foo
+check -E
+
+
 echo OK

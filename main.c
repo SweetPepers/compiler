@@ -280,6 +280,10 @@ static void parseArgs(int Argc, char **Argv) {
   // 不存在输入文件时报错
   if (InputPaths.Len == 0)
     error("no input files");
+  
+  // -E隐式包含输入是C语言的宏
+  if (OptE)
+    OptX = FILE_C;
 }
 
 // 判断字符串P是否以字符串Q结尾
