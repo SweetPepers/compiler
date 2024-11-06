@@ -6482,6 +6482,9 @@ todo
 
 ### 279 识别.a和.so文件
 
+### 280 支持long double
+代码多, codegen改了一堆
+
 
 
 
