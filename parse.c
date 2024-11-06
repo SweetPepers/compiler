@@ -360,6 +360,13 @@ static Node *newVarNode(Obj *Var, Token *Tok) {
   return Nd;
 }
 
+// VLA指针
+static Node *newVLAPtr(Obj *Var, Token *Tok) {
+  Node *Nd = newNode(ND_VLA_PTR, Tok);
+  Nd->Var = Var;
+  return Nd;
+}
+
 // 新转换节点
 Node *newCast(Node *Expr, Type *Ty) {
   addType(Expr);
@@ -1084,7 +1091,7 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy, VarAttr *Attr) 
       // X的类型名
       Token *Tok = Ty->Name;
       // X = alloca(Tmp)，VLASize对应N
-      Node *Expr = newBinary(ND_ASSIGN, newVarNode(Var, Tok),
+      Node *Expr = newBinary(ND_ASSIGN, newVLAPtr(Var, Tok),
                              newAlloca(newVarNode(Ty->VLASize, Tok)), Tok);
 
       // 存放在表达式语句中
@@ -2669,6 +2676,13 @@ static Node *newAdd(Node *LHS, Node *RHS, Token *Tok) {
     Node *Tmp = LHS;
     LHS = RHS;
     RHS = Tmp;
+  }
+
+  // VLA + num
+  // 指针加法，需要num×VLASize操作
+  if (LHS->Ty->Base->Kind == TY_VLA) {
+    RHS = newBinary(ND_MUL, RHS, newVarNode(LHS->Ty->Base->VLASize, Tok), Tok);
+    return newBinary(ND_ADD, LHS, RHS, Tok);
   }
 
   // ptr + num ==> ptr + num * 8

@@ -6462,6 +6462,9 @@ todo
 
 但是sizeof计算size没看明白 todo
 
+### 273 为VLA支持指针算术运算
+
+
 
 
 
