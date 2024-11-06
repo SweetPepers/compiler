@@ -3353,6 +3353,18 @@ static Node *primary(Token **Rest, Token *Tok) {
       isTypename(Tok->Next->Next)) {
     Type *Ty = typename(&Tok, Tok->Next->Next);
     *Rest = skip(Tok, ")");
+    // sizeof 可变长度数组的大小
+    if (Ty->Kind == TY_VLA) {
+      // 对于变量的sizeof操作
+      if (Ty->VLASize)
+        return newVarNode(Ty->VLASize, Tok);
+
+      // 对于VLA类型的sizeof操作
+      // 获取VLA类型的VLASize
+      Node *LHS = computeVLASize(Ty, Tok);
+      Node *RHS = newVarNode(Ty->VLASize, Tok);
+      return newBinary(ND_COMMA, LHS, RHS, Tok);
+    }
     return newULong(Ty->Size, Start);
   }
 
