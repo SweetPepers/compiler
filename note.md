@@ -6452,6 +6452,10 @@ static FileType parseOptX(char *S) {
 ### 270 使-E包含-xc
 -E选项: 只处理?
 
+### 271 支持alloca函数
+基于栈的内存分配
+todo   看不明白
+ 
 
 
 
