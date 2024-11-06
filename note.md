@@ -6466,6 +6466,8 @@ todo
 
 ### 274 支持sizeof(VLA类型)
 
+### 275 移除__STDC_NO_VLA__
+
 
 
 
