@@ -93,6 +93,9 @@ static char *ContLabel;
 // 否则为空。
 static Node *CurrentSwitch;
 
+// 内建的Alloca函数
+static Obj *BuiltinAlloca;
+
 // 语法
 // program = (typedef | functionDefinition* | global-variable)*
 // functionDefinition = declarator ("{" compoundStmt | ";" )
@@ -220,6 +223,7 @@ static int64_t eval(Node *Nd);
 static int64_t eval2(Node *Nd, char **Label);
 static int64_t evalRVal(Node *Nd, char **Label);
 static double evalDouble(Node *Nd);
+static bool isConstExpr(Node *Nd);
 static Node *assign(Token **Rest, Token *Tok);
 static Node *conditional(Token **Rest, Token *Tok);
 static Node *logOr(Token **Rest, Token *Tok);
@@ -912,10 +916,14 @@ static Type *arrayDimensions(Token **Rest, Token *Tok, Type *Ty) {
   }
 
   // 有数组维数的情况
-  int Sz = constExpr(&Tok, Tok);
+  Node *Expr = conditional(&Tok, Tok);
   Tok = skip(Tok, "]");
   Ty = typeSuffix(Rest, Tok, Ty);
-  return arrayOf(Ty, Sz);
+  // 处理可变长度数组
+  if (Ty->Kind == TY_VLA || !isConstExpr(Expr))
+    return VLAOf(Ty, Expr);
+  // 处理固定长度数组
+  return arrayOf(Ty, eval(Expr));
 }
 
 // typeSuffix = "(" funcParams | "[" arrayDimensions | ε
@@ -989,6 +997,45 @@ static Type *funcParams(Token **Rest, Token *Tok, Type *Ty) {
   return Ty;
 }
 
+// 生成代码计算VLA的大小
+static Node *computeVLASize(Type *Ty, Token *Tok) {
+  // 空表达式
+  Node *Nd = newNode(ND_NULL_EXPR, Tok);
+
+  // 处理指针的基部
+  if (Ty->Base)
+    Nd = newBinary(ND_COMMA, Nd, computeVLASize(Ty->Base, Tok), Tok);
+
+  // 如果都不是VLA，则返回空表达式
+  if (Ty->Kind != TY_VLA)
+    return Nd;
+
+  // 基类的大小
+  Node *BaseSz;
+  if (Ty->Base->Kind == TY_VLA)
+    // 指向的是VLA
+    BaseSz = newVarNode(Ty->Base->VLASize, Tok);
+  else
+    // 本身是VLA
+    BaseSz = newNum(Ty->Base->Size, Tok);
+
+  Ty->VLASize = newLVar("", TyULong);
+  // VLASize=VLALen*BaseSz，VLA大小=基类个数*基类大小
+  Node *Expr = newBinary(ND_ASSIGN, newVarNode(Ty->VLASize, Tok),
+                         newBinary(ND_MUL, Ty->VLALen, BaseSz, Tok), Tok);
+  return newBinary(ND_COMMA, Nd, Expr, Tok);
+}
+
+// 根据相应Sz，新建一个Alloca函数
+static Node *newAlloca(Node *Sz) {
+  Node *Nd = newUnary(ND_FUNCALL, newVarNode(BuiltinAlloca, Sz->Tok), Sz->Tok);
+  Nd->FuncType = BuiltinAlloca->Ty;
+  Nd->Ty = BuiltinAlloca->Ty->ReturnTy;
+  Nd->Args = Sz;
+  addType(Sz);
+  return Nd;
+}
+
 // declaration =
 //    declspec (declarator ("=" initializer)? ("," declarator ("=" initializer)?)*)? ";"
 static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy, VarAttr *Attr) {
@@ -1017,6 +1064,32 @@ static Node *declaration(Token **Rest, Token *Tok, Type *BaseTy, VarAttr *Attr) 
       pushScope(getIdent(Ty->Name))->Var = Var;
       if (equal(Tok, "="))
         GVarInitializer(&Tok, Tok->Next, Var);
+      continue;
+    }
+    // 生成代码计算VLA的大小
+    // 在此生成是因为，即使Ty不是VLA，但也可能是一个指向VLA的指针
+    Cur->Next = newUnary(ND_EXPR_STMT, computeVLASize(Ty, Tok), Tok);
+    Cur = Cur->Next;
+
+    // 处理可变长度数组
+    if (Ty->Kind == TY_VLA) {
+      if (equal(Tok, "="))
+        errorTok(Tok, "variable-sized object may not be initialized");
+
+      // VLA被改写为alloca()调用
+      // 例如：`int X[N]`被改写为`Tmp = N, X = alloca(Tmp)`
+
+      // X
+      Obj *Var = newLVar(getIdent(Ty->Name), Ty);
+      // X的类型名
+      Token *Tok = Ty->Name;
+      // X = alloca(Tmp)，VLASize对应N
+      Node *Expr = newBinary(ND_ASSIGN, newVarNode(Var, Tok),
+                             newAlloca(newVarNode(Ty->VLASize, Tok)), Tok);
+
+      // 存放在表达式语句中
+      Cur->Next = newUnary(ND_EXPR_STMT, Expr, Tok);
+      Cur = Cur->Next;
       continue;
     }
 
@@ -2204,6 +2277,52 @@ static int64_t evalRVal(Node *Nd, char **Label) {
   return -1;
 }
 
+// 判断是否为常量表达式
+static bool isConstExpr(Node *Nd) {
+  addType(Nd);
+
+  switch (Nd->Kind) {
+  case ND_ADD:
+  case ND_SUB:
+  case ND_MUL:
+  case ND_DIV:
+  case ND_BITAND:
+  case ND_BITOR:
+  case ND_BITXOR:
+  case ND_SHL:
+  case ND_SHR:
+  case ND_EQ:
+  case ND_NE:
+  case ND_LT:
+  case ND_LE:
+  case ND_LOGAND:
+  case ND_LOGOR:
+    // 左部右部 都为常量表达式时 为真
+    return isConstExpr(Nd->LHS) && isConstExpr(Nd->RHS);
+  case ND_COND:
+    // 条件不为常量表达式时 为假
+    if (!isConstExpr(Nd->Cond))
+      return false;
+    // 条件为常量表达式时，判断相应分支语句是否为真
+    return isConstExpr(eval(Nd->Cond) ? Nd->Then : Nd->Els);
+  case ND_COMMA:
+    // 判断逗号最右表达式是否为 常量表达式
+    return isConstExpr(Nd->RHS);
+  case ND_NEG:
+  case ND_NOT:
+  case ND_BITNOT:
+  case ND_CAST:
+    // 判断左部是否为常量表达式
+    return isConstExpr(Nd->LHS);
+  case ND_NUM:
+    // 数字恒为常量表达式
+    return true;
+  default:
+    // 其他情况默认为假
+    return false;
+  }
+}
+
 // 解析常量表达式
 int64_t constExpr(Token **Rest, Token *Tok) {
   // 进行常量表达式的构造
@@ -3227,6 +3346,9 @@ static Node *primary(Token **Rest, Token *Tok) {
   if (equal(Tok, "sizeof")){
     Node *Nd = unary(Rest, Tok->Next); // 跳过sizeof, 防止变函数 sizeof函数
     addType(Nd);
+    // sizeof 可变长度数组的大小
+    if (Nd->Ty->Kind == TY_VLA)
+      return newVarNode(Nd->Ty->VLASize, Tok);
     return newULong(Nd->Ty->Size, Tok);
   }
 
@@ -3540,7 +3662,7 @@ static void declareBuiltinFunctions(void) {
   // 处理alloca函数
   Type *Ty = funcType(pointerTo(TyVoid));
   Ty->Params = copyType(TyInt);
-  Obj *BuiltinAlloca = newGVar("alloca", Ty);
+  BuiltinAlloca = newGVar("alloca", Ty);
   BuiltinAlloca->IsDefinition = false;
 }
 
@@ -3549,7 +3671,7 @@ static void declareBuiltinFunctions(void) {
 Obj *parse(Token *Tok) {
   // 声明内建函数
   declareBuiltinFunctions();
-  
+
   Globals = NULL;
   while (Tok->Kind != TK_EOF) {
     VarAttr Attr = {};

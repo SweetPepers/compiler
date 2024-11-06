@@ -6454,8 +6454,13 @@ static FileType parseOptX(char *S) {
 
 ### 271 支持alloca函数
 基于栈的内存分配
-todo   看不明白
- 
+
+todo   
+
+### 272 支持对VLA进行sizeof
+声明时 有个isConstExpr函数, 不是常表达式, 则为VLA
+
+但是sizeof计算size没看明白 todo
 
 
 
