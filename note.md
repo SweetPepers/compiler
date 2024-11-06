@@ -6485,6 +6485,12 @@ todo
 ### 280 支持long double
 代码多, codegen改了一堆
 
+### 281 支持范围case
+"case" constExpr ("..." constExpr)? ":" stmt
+```c
+ASSERT(2, ({ int i=0; switch(7) { case 0 ... 5: i=1; break; case 6 ... 20: i=2; break; } i; }));
+```
+
 
 
 

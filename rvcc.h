@@ -292,9 +292,13 @@ struct Node {
   char *UniqueLabel;
   Node *GotoNext;
 
-  // switch和case
+  // switch
   Node *CaseNext;
   Node *DefaultCase;
+
+  // Case语句
+  long Begin; // case后面的数值
+  long End;   // case ...后面的数值
 
   // "asm" 字符串字面量
   char *AsmStr;
