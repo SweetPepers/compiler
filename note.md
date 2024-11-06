@@ -6472,6 +6472,13 @@ todo
 
 ### 277 支持-s选项
 
+### 278 为符号生成大小和类型
+```c
+      printLn("  .type %s, @object", Var->Name);
+      printLn("  .size %s, %d", Var->Name, Var->Ty->Size);
+      printLn("  .align %d", simpleLog2(Align));
+      printLn("%s:", Var->Name);
+```
 
 
 
